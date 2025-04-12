@@ -1,0 +1,13 @@
+[
+  {
+    "label": "Start Hardhat Localhost Server",
+    "command": "yarn hardhat node",
+    // Whether to allow multiple instances of the same task to be run, or rather wait for the existing ones to finish, defaults to `false`.
+    "allow_concurrent_runs": false,
+    "reveal": "never",
+    "hide": "never",
+    "shell": "system",
+    "show_summary": true,
+    "show_output": true
+  }
+]
