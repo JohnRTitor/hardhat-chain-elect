@@ -2,8 +2,16 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpe
 import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
+import { developmentChains } from "../../helper-hardhat-config";
 
 describe("CandidateDatabase Unit Tests", () => {
+  before(function () {
+    // we want to run this only on development chains
+    if (!developmentChains.includes(hre.network.name)) {
+      this.skip();
+    }
+  });
+
   async function deployCandidateDatabaseFixture() {
     const [owner, otherAccount] = await hre.viem.getWalletClients();
 
