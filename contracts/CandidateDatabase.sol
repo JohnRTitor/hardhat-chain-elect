@@ -136,6 +136,9 @@ contract CandidateDatabase {
         view
         returns (string memory name, uint256 age, string memory email)
     {
+        if (!s_candidates[_candidateAddress].isRegistered) {
+            revert CandidateDatabase__NotRegistered();
+        }
         Candidate memory candidate = s_candidates[_candidateAddress];
         return (candidate.name, candidate.age, candidate.email);
     }

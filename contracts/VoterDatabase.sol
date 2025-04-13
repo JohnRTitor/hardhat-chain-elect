@@ -47,6 +47,10 @@ contract VoterDatabase {
     /// @param voter The address of the voter who updated info
     event VoterUpdated(address indexed voter);
 
+    /// @notice Emitted when a voter is deleted from the system
+    /// @param voter The address of the voter whose info was deleted
+    event VoterDeleted(address indexed voter);
+
     /// @notice Emitted when a voter is marked as having voted
     /// @param voter The address of the voter who voted
     event VoterVoted(address indexed voter);
@@ -128,6 +132,8 @@ contract VoterDatabase {
                 break;
             }
         }
+
+        emit VoterDeleted(_voterAddress);
     }
 
     // TODO: investigate if we should only allow the owner to mark as markVoted
@@ -155,6 +161,9 @@ contract VoterDatabase {
         onlyOwner
         returns (string memory name, uint256 age, bool hasVoted)
     {
+        if (!s_voters[_voterAddress].isRegistered) {
+            revert VoterDatabase__NotRegistered();
+        }
         Voter memory voter = s_voters[_voterAddress];
         return (voter.name, voter.age, voter.hasVoted);
     }
