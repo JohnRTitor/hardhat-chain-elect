@@ -245,4 +245,62 @@ describe("CandidateDatabase Unit Tests", () => {
       expect(result).to.include(getAddress(otherAccount.account.address));
     });
   });
+
+  describe("getMyRegistrationStatus", () => {
+    it("should return false if not registered", async () => {
+      const { candidateDatabase } = await loadFixture(
+        deployCandidateDatabaseFixture
+      );
+
+      const result = await candidateDatabase.read.getMyRegistrationStatus();
+      assert(!result);
+    });
+
+    it("should return true if registered", async () => {
+      const { candidateDatabase, publicClient } = await loadFixture(
+        deployCandidateDatabaseFixture
+      );
+
+      const hash = await candidateDatabase.write.addCandidate([
+        "Alice",
+        BigInt(20),
+        "alice@mail.com",
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      const result = await candidateDatabase.read.getMyRegistrationStatus();
+      assert(result);
+    });
+  });
+
+  describe("getCandidateRegistrationStatus", () => {
+    it("should return false for unregistered candidate", async () => {
+      const { candidateDatabase, otherAccount } = await loadFixture(
+        deployCandidateDatabaseFixture
+      );
+
+      const result =
+        await candidateDatabase.read.getCandidateRegistrationStatus([
+          otherAccount.account.address,
+        ]);
+      assert(!result);
+    });
+
+    it("should return true for registered candidate", async () => {
+      const { candidateDatabase, otherAccount, publicClient } =
+        await loadFixture(deployCandidateDatabaseFixture);
+
+      const hash = await candidateDatabase.write.addCandidate(
+        ["Bob", BigInt(30), "bob@mail.com"],
+        { account: otherAccount.account }
+      );
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      const result =
+        await candidateDatabase.read.getCandidateRegistrationStatus([
+          otherAccount.account.address,
+        ]);
+      assert(result);
+    });
+  });
 });

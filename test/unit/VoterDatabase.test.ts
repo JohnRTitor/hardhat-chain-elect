@@ -238,4 +238,57 @@ describe("VoterDatabase Unit Tests", function () {
       expect(result).to.include(getAddress(otherAccount.account.address));
     });
   });
+
+  describe("getMyRegistrationStatus", function () {
+    it("should return false if not registered", async function () {
+      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+      const result = await voterDatabase.read.getMyRegistrationStatus();
+      assert(!result);
+    });
+
+    it("should return true if registered", async function () {
+      const { voterDatabase, publicClient } = await loadFixture(
+        deployVoterDatabaseFixture
+      );
+      const hash = await voterDatabase.write.addVoter(["Jack", BigInt(30)]);
+      await publicClient.waitForTransactionReceipt({ hash });
+      const result = await voterDatabase.read.getMyRegistrationStatus();
+      assert(result);
+    });
+  });
+
+  describe("getMyVotingStatus", function () {
+    it("should revert if not registered", async function () {
+      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+      await expect(voterDatabase.read.getMyVotingStatus()).to.be.rejectedWith(
+        "VoterDatabase__NotRegistered"
+      );
+    });
+
+    it("should return false if not voted", async function () {
+      const { voterDatabase, publicClient } = await loadFixture(
+        deployVoterDatabaseFixture
+      );
+      const hash = await voterDatabase.write.addVoter(["Kate", BigInt(28)]);
+      await publicClient.waitForTransactionReceipt({ hash });
+      const result = await voterDatabase.read.getMyVotingStatus();
+      assert(!result);
+    });
+
+    it("should return true if voted", async function () {
+      const { voterDatabase, publicClient } = await loadFixture(
+        deployVoterDatabaseFixture
+      );
+      const hash1 = await voterDatabase.write.addVoter(["Leo", BigInt(28)]);
+      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+      const hash2 = await voterDatabase.write.markVoted([
+        getAddress((await hre.viem.getWalletClients())[0].account.address),
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+      const result = await voterDatabase.read.getMyVotingStatus();
+      assert(result);
+    });
+  });
 });
