@@ -6,21 +6,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
-error VoterDatabase__NotEligible();
 /// @notice Thrown when a user under the age of 18 attempts to register
+error VoterDatabase__NotEligible();
 
-error VoterDatabase__NotRegistered();
 /// @notice Thrown when a non-registered user tries to perform a restricted action
+error VoterDatabase__NotRegistered();
 
-error VoterDatabase__AlreadyRegistered();
 /// @notice Thrown when a user tries to register again
+error VoterDatabase__AlreadyRegistered();
 
-error VoterDatabase__NotOwner();
 /// @notice Thrown when a non-owner tries to access restricted functionality
-
-error VoterDatabase__CannotUpdateAfterVoting();
+error VoterDatabase__NotOwner();
 
 /// @notice Thrown when a voter attempts to update info after voting
+error VoterDatabase__CannotUpdateAfterVoting();
 
 // TODO: allow admin to update info
 // TODO: investigate if we need something else/more
@@ -187,5 +186,25 @@ contract VoterDatabase {
     {
         Voter memory voter = s_voters[msg.sender];
         return (voter.name, voter.age, voter.hasVoted);
+    }
+
+    /// @notice Get your own registration status
+    /// @return isRegistered Whether you are registered to vote
+    function getMyRegistrationStatus() public view returns (bool isRegistered) {
+        if (!s_voters[msg.sender].isRegistered) {
+            return false;
+        }
+        return true;
+    }
+
+    /// @notice Get your own voting status
+    /// @return hasVoted Whether you have voted
+    function getMyVotingStatus()
+        public
+        view
+        onlyRegistered
+        returns (bool hasVoted)
+    {
+        return s_voters[msg.sender].hasVoted;
     }
 }

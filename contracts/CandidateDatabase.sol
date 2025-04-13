@@ -162,4 +162,25 @@ contract CandidateDatabase {
         Candidate memory candidate = s_candidates[msg.sender];
         return (candidate.name, candidate.age, candidate.email);
     }
+
+    /// @notice Get your own registration status
+    /// @return isRegistered Whether you are registered for a election
+    function getMyRegistrationStatus() public view returns (bool isRegistered) {
+        if (!s_candidates[msg.sender].isRegistered) {
+            return false;
+        }
+        return true;
+    }
+
+    /// @notice Get a candidate's registration status
+    /// @param _candidateAddress Address of the candidate
+    /// @return isRegistered Whether the candidate is registered for a election
+    function getCandidateRegistrationStatus(
+        address _candidateAddress
+    ) public view returns (bool isRegistered) {
+        if (!s_candidates[_candidateAddress].isRegistered) {
+            return false;
+        }
+        return true;
+    }
 }
