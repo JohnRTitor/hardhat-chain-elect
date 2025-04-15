@@ -37,6 +37,7 @@ contract ElectionDatabase {
         bool isRegistered;
         // used to denote whether the election is active or not
         bool isActive;
+        uint256 totalVotes;
     }
 
     address private immutable i_owner;
@@ -111,6 +112,7 @@ contract ElectionDatabase {
         newElection.description = _description;
         newElection.isActive = false;
         newElection.isRegistered = true;
+        newElection.totalVotes = 0;
         // mappings are auto initialised
 
         s_electionCounter++;
@@ -212,5 +214,41 @@ contract ElectionDatabase {
 
     function getElectionCount() external view returns (uint256) {
         return s_electionCounter;
+    }
+
+    function getRegisteredCandidates(
+        uint256 _electionId
+    )
+        external
+        view
+        onlyRegisteredElection(_electionId)
+        returns (address[] memory)
+    {
+        return s_elections[_electionId].candidates;
+    }
+
+    function getTotalVoteCount(
+        uint256 _electionId
+    ) external view onlyRegisteredElection(_electionId) returns (uint256) {
+        return s_elections[_electionId].totalVotes;
+    }
+
+    function getWinner(
+        uint256 _electionId
+    ) external view onlyRegisteredElection(_electionId) returns (address) {
+        Election storage election = s_elections[_electionId];
+        uint256 maxVotes = 0;
+        address winnerAddress = address(0);
+
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            address candidate = election.candidates[i];
+            uint256 votes = election.votesPerCandidate[candidate];
+            if (votes > maxVotes) {
+                maxVotes = votes;
+                winnerAddress = candidate;
+            }
+        }
+
+        return winnerAddress;
     }
 }
