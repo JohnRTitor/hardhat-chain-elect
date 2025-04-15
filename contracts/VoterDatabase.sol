@@ -141,7 +141,7 @@ contract VoterDatabase {
     /// @notice Mark a voter as having voted
     /// @dev Should be called by the election contract or owner after vote is cast
     /// @param _voter Address of the voter to mark
-    function markVoted(address _voter) public onlyOwner {
+    function markVoted(address _voter) external onlyOwner {
         s_voters[_voter].hasVoted = true;
 
         emit VoterVoted(_voter);

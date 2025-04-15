@@ -25,11 +25,17 @@ contract ElectionDatabase {
     struct Election {
         string name;
         string description;
+        // address of candidates who are also registered in CandidateDatabase
         address[] candidates;
+        // candidate -> votes to that candidate
         mapping(address => uint256) votesPerCandidate;
+        // voter -> who they voted for
         mapping(address => address) voterToChosenCandidate;
+        // voter -> whether they have voted
         mapping(address => bool) voterHasVoted;
+        // flag to determine whether an election is valid/registered
         bool isRegistered;
+        // used to denote whether the election is active or not
         bool isActive;
     }
 
@@ -55,12 +61,12 @@ contract ElectionDatabase {
         if (msg.sender != i_owner) revert ElectionDatabase__NotOwner();
         _;
     }
-    modifier onlyRegisteredElection(Election storage _election) {
-        if (!_election.isRegistered)
+    modifier onlyRegisteredElection(uint256 _electionId) {
+        if (!s_elections[_electionId].isRegistered)
             revert ElectionDatabase__ElectionNotFound();
         _;
     }
-    modifier onlyValidVoter() {
+    modifier onlyRegisteredVoter() {
         if (!s_voterDB.getMyRegistrationStatus()) {
             revert ElectionDatabase__NotRegisteredVoter();
         }
@@ -115,7 +121,7 @@ contract ElectionDatabase {
     function addCandidate(
         uint256 _electionId,
         address _candidate
-    ) external onlyOwner onlyRegisteredElection(s_elections[_electionId]) {
+    ) external onlyOwner onlyRegisteredElection(_electionId) {
         if (!s_candidateDB.getCandidateRegistrationStatus(_candidate)) {
             revert ElectionDatabase__CandidateNotRegistered();
         }
@@ -128,8 +134,9 @@ contract ElectionDatabase {
 
     function toggleElectionStatus(
         uint256 _electionId
-    ) external onlyOwner onlyRegisteredElection(s_elections[_electionId]) {
+    ) external onlyOwner onlyRegisteredElection(_electionId) {
         Election storage election = s_elections[_electionId];
+        // if election is not active, then open it
         if (!election.isActive) {
             election.isActive = true;
             emit ElectionOpened(_electionId);
@@ -139,6 +146,8 @@ contract ElectionDatabase {
         }
     }
 
+    // to be called by anyone
+    // TODO: markVoted can only be called by owner, investigate that
     function vote(
         uint256 _electionId,
         address _candidate
@@ -146,7 +155,7 @@ contract ElectionDatabase {
         external
         onlyActiveElection(s_elections[_electionId])
         onlyRegisteredCandidate(_electionId, _candidate)
-        onlyValidVoter
+        onlyRegisteredVoter
     {
         if (!s_voterDB.getMyRegistrationStatus())
             revert ElectionDatabase__NotRegisteredVoter();
@@ -159,5 +168,49 @@ contract ElectionDatabase {
         election.votesPerCandidate[_candidate]++;
         election.voterToChosenCandidate[msg.sender] = _candidate;
         election.voterHasVoted[msg.sender] = true;
+
+        // this mark voted function marks the voter, we don't want people
+        // to change their identity after they have voted, so mark it on the
+        // VoterDatabase, ideally this should be called once, and not per election
+        s_voterDB.markVoted(msg.sender);
+    }
+
+    function getVotesOfCandidate(
+        uint256 _electionId,
+        address _candidate
+    ) external view onlyRegisteredElection(_electionId) returns (uint256) {
+        return s_elections[_electionId].votesPerCandidate[_candidate];
+    }
+
+    function getElectionStatus(
+        uint256 _electionId
+    ) external view onlyRegisteredElection(_electionId) returns (bool) {
+        return s_elections[_electionId].isActive;
+    }
+
+    function getElectionDetails(
+        uint256 _electionId
+    )
+        external
+        view
+        onlyRegisteredElection(_electionId)
+        returns (
+            string memory name,
+            string memory description,
+            bool isActive,
+            address[] memory candidates
+        )
+    {
+        Election storage election = s_elections[_electionId];
+        return (
+            election.name,
+            election.description,
+            election.isActive,
+            election.candidates
+        );
+    }
+
+    function getElectionCount() external view returns (uint256) {
+        return s_electionCounter;
     }
 }
