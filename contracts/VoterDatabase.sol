@@ -21,10 +21,6 @@ error VoterDatabase__NotOwner();
 /// @notice Thrown when a voter attempts to update info after voting
 error VoterDatabase__CannotUpdateAfterVoting();
 
-// TODO: allow admin to update info
-// TODO: investigate if we need something else/more
-// TODO: complete NatSpec comments
-
 contract VoterDatabase {
     /// @notice Stores details for a single voter
     struct Voter {
@@ -75,7 +71,7 @@ contract VoterDatabase {
     /// @notice Register a new voter
     /// @param _name Name of the voter
     /// @param _age Age of the voter (must be 18 or older)
-    function addVoter(string memory _name, uint256 _age) public {
+    function addVoter(string memory _name, uint256 _age) external {
         if (_age < 18) revert VoterDatabase__NotEligible();
         if (s_voters[msg.sender].isRegistered)
             revert VoterDatabase__AlreadyRegistered();
@@ -97,7 +93,7 @@ contract VoterDatabase {
     function updateVoter(
         string memory _name,
         uint256 _age
-    ) public onlyRegistered {
+    ) external onlyRegistered {
         if (s_voters[msg.sender].hasVoted)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
@@ -110,7 +106,7 @@ contract VoterDatabase {
     /// @notice Delete a voter's registration
     /// @dev Can only be executed by the owner
     /// @param _voterAddress Address of the voter to delete
-    function deleteVoter(address _voterAddress) public onlyOwner {
+    function deleteVoter(address _voterAddress) external onlyOwner {
         if (!s_voters[_voterAddress].isRegistered) {
             revert VoterDatabase__NotRegistered();
         }
@@ -135,16 +131,11 @@ contract VoterDatabase {
         emit VoterDeleted(_voterAddress);
     }
 
-    // TODO: investigate if we should only allow the owner to mark as markVoted
-    // TODO: implement stuff, call this from an external contract
-
     /// @notice Mark a voter as having voted
-    /// @dev Should be called by the election contract or owner after vote is cast
-    /// @param _voter Address of the voter to mark
-    function markVoted(address _voter) external onlyOwner {
-        s_voters[_voter].hasVoted = true;
-
-        emit VoterVoted(_voter);
+    /// @dev Should be called by the election contract
+    function markVoted() external onlyRegistered {
+        s_voters[msg.sender].hasVoted = true;
+        emit VoterVoted(msg.sender);
     }
 
     /// @notice Get details of a specific voter (only callable by owner)
@@ -168,7 +159,6 @@ contract VoterDatabase {
     }
 
     /// @notice Get addresses of all registered voters
-    /// @dev Only the owner/election manager can call this
     /// @return Array of addresses of all registered voters
     function getAllVoters() public view onlyOwner returns (address[] memory) {
         return s_voterAddresses;
@@ -191,10 +181,7 @@ contract VoterDatabase {
     /// @notice Get your own registration status
     /// @return isRegistered Whether you are registered to vote
     function getMyRegistrationStatus() public view returns (bool isRegistered) {
-        if (!s_voters[msg.sender].isRegistered) {
-            return false;
-        }
-        return true;
+        return s_voters[msg.sender].isRegistered;
     }
 
     /// @notice Get your own voting status
