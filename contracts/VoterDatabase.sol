@@ -22,10 +22,18 @@ error VoterDatabase__NotOwner();
 error VoterDatabase__CannotUpdateAfterVoting();
 
 contract VoterDatabase {
+    /// @notice Enum representing gender
+    enum Gender {
+        Male,
+        Female
+    }
+
     /// @notice Stores details for a single voter
     struct Voter {
         string name;
         uint256 age;
+        Gender gender;
+        string presentAddress;
         bool hasVoted;
         bool isRegistered;
     }
@@ -71,7 +79,14 @@ contract VoterDatabase {
     /// @notice Register a new voter
     /// @param _name Name of the voter
     /// @param _age Age of the voter (must be 18 or older)
-    function addVoter(string memory _name, uint256 _age) external {
+    /// @param _gender Gender of the voter (0 for Male, 1 for Female)
+    /// @param _presentAddress Present address of the voter
+    function addVoter(
+        string memory _name,
+        uint256 _age,
+        Gender _gender,
+        string memory _presentAddress
+    ) external {
         if (_age < 18) revert VoterDatabase__NotEligible();
         if (s_voters[msg.sender].isRegistered)
             revert VoterDatabase__AlreadyRegistered();
@@ -79,6 +94,8 @@ contract VoterDatabase {
         s_voters[msg.sender] = Voter({
             name: _name,
             age: _age,
+            gender: _gender,
+            presentAddress: _presentAddress,
             hasVoted: false,
             isRegistered: true
         });
@@ -90,15 +107,22 @@ contract VoterDatabase {
     /// @notice Update voter information (only if registered and not yet voted)
     /// @param _name Updated name
     /// @param _age Updated age
+    /// @param _gender Updated gender
+    /// @param _presentAddress Updated address
     function updateVoter(
         string memory _name,
-        uint256 _age
+        uint256 _age,
+        Gender _gender,
+        string memory _presentAddress
     ) external onlyRegistered {
         if (s_voters[msg.sender].hasVoted)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
-        s_voters[msg.sender].name = _name;
-        s_voters[msg.sender].age = _age;
+        Voter storage voter = s_voters[msg.sender];
+        voter.name = _name;
+        voter.age = _age;
+        voter.gender = _gender;
+        voter.presentAddress = _presentAddress;
 
         emit VoterUpdated(msg.sender);
     }
@@ -111,18 +135,14 @@ contract VoterDatabase {
             revert VoterDatabase__NotRegistered();
         }
 
-        // remove voter from mapping
+        // remove voter from mapping and array
         delete s_voters[_voterAddress];
 
-        // remove voter from array
         for (uint256 i = 0; i < s_voterAddresses.length; i++) {
-            // first we find the index of the voter
             if (s_voterAddresses[i] == _voterAddress) {
-                // since we can't remove the element directly, we move the last element to its position
                 s_voterAddresses[i] = s_voterAddresses[
                     s_voterAddresses.length - 1
                 ];
-                // and then pop the last element, so list stays the same but without the deleted element
                 s_voterAddresses.pop();
                 break;
             }
@@ -142,6 +162,8 @@ contract VoterDatabase {
     /// @param _voterAddress Address of the voter
     /// @return name The voter's name
     /// @return age The voter's age
+    /// @return gender The voter's gender
+    /// @return presentAddress The voter's address
     /// @return hasVoted Whether the voter has cast their vote
     function getVoterDetails(
         address _voterAddress
@@ -149,13 +171,25 @@ contract VoterDatabase {
         public
         view
         onlyOwner
-        returns (string memory name, uint256 age, bool hasVoted)
+        returns (
+            string memory name,
+            uint256 age,
+            Gender gender,
+            string memory presentAddress,
+            bool hasVoted
+        )
     {
         if (!s_voters[_voterAddress].isRegistered) {
             revert VoterDatabase__NotRegistered();
         }
         Voter memory voter = s_voters[_voterAddress];
-        return (voter.name, voter.age, voter.hasVoted);
+        return (
+            voter.name,
+            voter.age,
+            voter.gender,
+            voter.presentAddress,
+            voter.hasVoted
+        );
     }
 
     /// @notice Get addresses of all registered voters
@@ -167,15 +201,29 @@ contract VoterDatabase {
     /// @notice Get your own voter details
     /// @return name Your name
     /// @return age Your age
+    /// @return gender Your gender
+    /// @return presentAddress Your present address
     /// @return hasVoted Whether you have voted
     function getMyDetails()
         public
         view
         onlyRegistered
-        returns (string memory name, uint256 age, bool hasVoted)
+        returns (
+            string memory name,
+            uint256 age,
+            Gender gender,
+            string memory presentAddress,
+            bool hasVoted
+        )
     {
         Voter memory voter = s_voters[msg.sender];
-        return (voter.name, voter.age, voter.hasVoted);
+        return (
+            voter.name,
+            voter.age,
+            voter.gender,
+            voter.presentAddress,
+            voter.hasVoted
+        );
     }
 
     /// @notice Get your own registration status
