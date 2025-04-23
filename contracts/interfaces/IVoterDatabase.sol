@@ -4,9 +4,14 @@ pragma solidity ^0.8.8;
 /// @title IVoterDatabase
 /// @notice Interface for interacting with the VoterDatabase contract
 interface IVoterDatabase {
-    /// @notice Mark a specific voter as having voted
-    /// @param _voter Address of the voter
-    function markVoted(address _voter) external;
+    enum Gender {
+        Male,
+        Female
+    }
+
+    /// @notice Get all registered voters
+    /// @return voters Array of registered voter addresses
+    function getAllVoters() external view returns (address[] memory voters);
 
     /// @notice Get details of a specific voter
     /// @param _voterAddress Address of the voter
@@ -23,7 +28,7 @@ interface IVoterDatabase {
         returns (
             string memory name,
             uint256 age,
-            uint8 gender,
+            Gender gender,
             string memory presentAddress,
             bool hasVoted
         );
@@ -38,4 +43,8 @@ interface IVoterDatabase {
     /// @notice Get the voting status of the caller
     /// @return hasVoted True if the caller has already voted
     function getMyVotingStatus() external view returns (bool hasVoted);
+
+    /// @notice Mark a specific voter as having voted
+    /// @param _voter Address of the voter
+    function markVoted(address _voter) external;
 }

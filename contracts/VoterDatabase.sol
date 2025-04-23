@@ -6,6 +6,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
+import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
+
 /// @notice Thrown when a user under the age of 18 attempts to register
 error VoterDatabase__NotEligible();
 
@@ -20,6 +22,9 @@ error VoterDatabase__NotOwner();
 
 /// @notice Thrown when a voter attempts to update info after voting
 error VoterDatabase__CannotUpdateAfterVoting();
+
+/// @notice Thrown when import operations fail
+error VoterDatabase__ImportFailed();
 
 contract VoterDatabase {
     /// @notice Enum representing gender
@@ -57,6 +62,14 @@ contract VoterDatabase {
     /// @notice Emitted when a voter is marked as having voted
     /// @param voter The address of the voter who voted
     event VoterVoted(address indexed voter);
+
+    /// @notice Emitted when voter data is imported
+    /// @param sourceContract Address of the contract data was imported from
+    /// @param votersImported Number of voters successfully imported
+    event VotersImported(
+        address indexed sourceContract,
+        uint256 votersImported
+    );
 
     /// @notice Functions with this modifier can only be called by registered voters
     modifier onlyRegistered() {
@@ -156,6 +169,157 @@ contract VoterDatabase {
     function markVoted() external onlyRegistered {
         s_voters[msg.sender].hasVoted = true;
         emit VoterVoted(msg.sender);
+    }
+
+    /// @notice Import all voters from another VoterDatabase contract
+    /// @dev Only owner can call this function
+    /// @param _sourceContract The address of the source VoterDatabase contract
+    /// @return Number of voters successfully imported
+    function importAllVoters(
+        address _sourceContract
+    ) external onlyOwner returns (uint256) {
+        IVoterDatabase source = IVoterDatabase(_sourceContract);
+        address[] memory voters;
+
+        // Use try/catch to handle potential errors from external calls
+        try source.getAllVoters() returns (address[] memory _voters) {
+            voters = _voters;
+        } catch {
+            revert VoterDatabase__ImportFailed();
+        }
+
+        uint256 importedCount = 0;
+
+        for (uint256 i = 0; i < voters.length; i++) {
+            address voterAddress = voters[i];
+
+            // Skip if voter is already registered in this contract
+            if (s_voters[voterAddress].isRegistered) {
+                continue;
+            }
+
+            try source.getVoterDetails(voterAddress) returns (
+                string memory name,
+                uint256 age,
+                IVoterDatabase.Gender gender,
+                string memory presentAddress,
+                bool hasVoted
+            ) {
+                // Add voter to this contract
+                s_voters[voterAddress] = Voter({
+                    name: name,
+                    age: age,
+                    gender: Gender(uint(gender)),
+                    presentAddress: presentAddress,
+                    hasVoted: hasVoted,
+                    isRegistered: true
+                });
+
+                s_voterAddresses.push(voterAddress);
+                emit VoterRegistered(voterAddress);
+                importedCount++;
+            } catch {
+                // Continue to next voter if this one fails
+                continue;
+            }
+        }
+
+        emit VotersImported(_sourceContract, importedCount);
+        return importedCount;
+    }
+
+    /// @notice Import a specific voter from another VoterDatabase contract
+    /// @dev Only owner can call this function
+    /// @param _sourceContract The address of the source VoterDatabase contract
+    /// @param _voterAddress The address of the voter to import
+    /// @return success Whether the import was successful
+    function importVoter(
+        address _sourceContract,
+        address _voterAddress
+    ) external onlyOwner returns (bool) {
+        // Skip if voter is already registered in this contract
+        if (s_voters[_voterAddress].isRegistered) {
+            return false;
+        }
+
+        IVoterDatabase source = IVoterDatabase(_sourceContract);
+
+        try source.getVoterDetails(_voterAddress) returns (
+            string memory name,
+            uint256 age,
+            IVoterDatabase.Gender gender,
+            string memory presentAddress,
+            bool hasVoted
+        ) {
+            // Add voter to this contract
+            s_voters[_voterAddress] = Voter({
+                name: name,
+                age: age,
+                gender: Gender(uint(gender)),
+                presentAddress: presentAddress,
+                hasVoted: hasVoted,
+                isRegistered: true
+            });
+
+            s_voterAddresses.push(_voterAddress);
+            emit VoterRegistered(_voterAddress);
+
+            uint256 importedCount = 1;
+            emit VotersImported(_sourceContract, importedCount);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /// @notice Batch import selected voters from another VoterDatabase contract
+    /// @dev Only owner can call this function
+    /// @param _sourceContract The address of the source VoterDatabase contract
+    /// @param _voterAddresses Array of voter addresses to import
+    /// @return Number of voters successfully imported
+    function batchImportVoters(
+        address _sourceContract,
+        address[] calldata _voterAddresses
+    ) external onlyOwner returns (uint256) {
+        IVoterDatabase source = IVoterDatabase(_sourceContract);
+        uint256 importedCount = 0;
+
+        for (uint256 i = 0; i < _voterAddresses.length; i++) {
+            address voterAddress = _voterAddresses[i];
+
+            // Skip if voter is already registered
+            if (s_voters[voterAddress].isRegistered) {
+                continue;
+            }
+
+            try source.getVoterDetails(voterAddress) returns (
+                string memory name,
+                uint256 age,
+                IVoterDatabase.Gender gender,
+                string memory presentAddress,
+                bool hasVoted
+            ) {
+                // Add voter to this contract
+                s_voters[voterAddress] = Voter({
+                    name: name,
+                    age: age,
+                    gender: Gender(uint(gender)),
+                    presentAddress: presentAddress,
+                    hasVoted: hasVoted,
+                    isRegistered: true
+                });
+
+                s_voterAddresses.push(voterAddress);
+                emit VoterRegistered(voterAddress);
+                importedCount++;
+            } catch {
+                // Continue to next voter if this one fails
+                continue;
+            }
+        }
+
+        emit VotersImported(_sourceContract, importedCount);
+        return importedCount;
     }
 
     /// @notice Get details of a specific voter (only callable by owner)
