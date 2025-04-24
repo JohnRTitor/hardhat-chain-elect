@@ -26,6 +26,9 @@ error VoterDatabase__CannotUpdateAfterVoting();
 /// @notice Thrown when import operations fail
 error VoterDatabase__ImportFailed();
 
+/// @notice Thrown when an invalid address is provided
+error VoterDatabase__InvalidAddress();
+
 contract VoterDatabase {
     /// @notice Enum representing gender
     enum Gender {
@@ -70,6 +73,26 @@ contract VoterDatabase {
         address indexed sourceContract,
         uint256 votersImported
     );
+
+    /// @notice Emitted when admin adds a voter
+    /// @param voter The address of the voter added by admin
+    /// @param admin The admin who added the voter
+    event AdminAddedVoter(address indexed voter, address indexed admin);
+
+    /// @notice Emitted when admin updates a voter
+    /// @param voter The address of the voter updated by admin
+    /// @param admin The admin who updated the voter
+    event AdminUpdatedVoter(address indexed voter, address indexed admin);
+
+    /// @notice Emitted when admin removes a voter
+    /// @param voter The address of the voter removed by admin
+    /// @param admin The admin who removed the voter
+    event AdminRemovedVoter(address indexed voter, address indexed admin);
+
+    /// @notice Emitted when admin resets a voter's voting status
+    /// @param voter The address of the voter whose status was reset
+    /// @param admin The admin who reset the voter's status
+    event VotingStatusReset(address indexed voter, address indexed admin);
 
     /// @notice Functions with this modifier can only be called by registered voters
     modifier onlyRegistered() {
@@ -140,19 +163,16 @@ contract VoterDatabase {
         emit VoterUpdated(msg.sender);
     }
 
-    /// @notice Delete a voter's registration
-    /// @dev Can only be executed by the owner
-    /// @param _voterAddress Address of the voter to delete
-    function deleteVoter(address _voterAddress) external onlyOwner {
-        if (!s_voters[_voterAddress].isRegistered) {
-            revert VoterDatabase__NotRegistered();
-        }
+    /// @notice Allows a registered voter to delete their own registration
+    function deleteVoter() external onlyRegistered {
+        address voterAddress = msg.sender;
 
-        // remove voter from mapping and array
-        delete s_voters[_voterAddress];
+        // remove voter from mapping
+        delete s_voters[voterAddress];
 
+        // swap voter with last element and pop
         for (uint256 i = 0; i < s_voterAddresses.length; i++) {
-            if (s_voterAddresses[i] == _voterAddress) {
+            if (s_voterAddresses[i] == voterAddress) {
                 s_voterAddresses[i] = s_voterAddresses[
                     s_voterAddresses.length - 1
                 ];
@@ -161,7 +181,7 @@ contract VoterDatabase {
             }
         }
 
-        emit VoterDeleted(_voterAddress);
+        emit VoterDeleted(voterAddress);
     }
 
     /// @notice Mark a voter as having voted
@@ -272,12 +292,175 @@ contract VoterDatabase {
         }
     }
 
+    /// @notice Admin function to add a voter directly
+    /// @dev Only owner can call this function
+    /// @param _voterAddress Address of the voter to add
+    /// @param _name Name of the voter
+    /// @param _age Age of the voter
+    /// @param _gender Gender of the voter
+    /// @param _presentAddress Present address of the voter
+    /// @param _hasVoted Initial voting status of the voter
+    function adminAddVoter(
+        address _voterAddress,
+        string memory _name,
+        uint256 _age,
+        Gender _gender,
+        string memory _presentAddress,
+        bool _hasVoted
+    ) external onlyOwner {
+        if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
+
+        // Check if already registered (overwrite if yes)
+        bool alreadyRegistered = s_voters[_voterAddress].isRegistered;
+
+        s_voters[_voterAddress] = Voter({
+            name: _name,
+            age: _age,
+            gender: _gender,
+            presentAddress: _presentAddress,
+            hasVoted: _hasVoted,
+            isRegistered: true
+        });
+
+        // Add to address array only if not already registered
+        if (!alreadyRegistered) {
+            s_voterAddresses.push(_voterAddress);
+        }
+
+        emit AdminAddedVoter(_voterAddress, msg.sender);
+    }
+
+    /// @notice Admin function to update voter details (can update even if voter has voted)
+    /// @dev Only owner can call this function
+    /// @param _voterAddress Address of the voter to update
+    /// @param _name Updated name
+    /// @param _age Updated age
+    /// @param _gender Updated gender
+    /// @param _presentAddress Updated present address
+    function adminUpdateVoter(
+        address _voterAddress,
+        string memory _name,
+        uint256 _age,
+        Gender _gender,
+        string memory _presentAddress
+    ) external onlyOwner {
+        if (!s_voters[_voterAddress].isRegistered)
+            revert VoterDatabase__NotRegistered();
+
+        Voter storage voter = s_voters[_voterAddress];
+
+        // Update details but preserve voting status
+        voter.name = _name;
+        voter.age = _age;
+        voter.gender = _gender;
+        voter.presentAddress = _presentAddress;
+
+        emit AdminUpdatedVoter(_voterAddress, msg.sender);
+    }
+
+    /// @notice Admin function to remove a voter
+    /// @dev Only owner can call this function
+    /// @param _voterAddress Address of the voter to remove
+    function adminRemoveVoter(address _voterAddress) external onlyOwner {
+        if (!s_voters[_voterAddress].isRegistered)
+            revert VoterDatabase__NotRegistered();
+
+        // Remove voter from mapping
+        delete s_voters[_voterAddress];
+
+        // Remove from the address array using swap and pop
+        for (uint256 i = 0; i < s_voterAddresses.length; i++) {
+            if (s_voterAddresses[i] == _voterAddress) {
+                s_voterAddresses[i] = s_voterAddresses[
+                    s_voterAddresses.length - 1
+                ];
+                s_voterAddresses.pop();
+                break;
+            }
+        }
+
+        emit AdminRemovedVoter(_voterAddress, msg.sender);
+    }
+
+    /// @notice Admin function to toggle a voter's voting status
+    /// @dev Only owner can call this function
+    /// @param _voterAddress Address of the voter
+    /// @param _hasVoted New voting status to set
+    function adminSetVotingStatus(
+        address _voterAddress,
+        bool _hasVoted
+    ) external onlyOwner {
+        if (!s_voters[_voterAddress].isRegistered)
+            revert VoterDatabase__NotRegistered();
+
+        s_voters[_voterAddress].hasVoted = _hasVoted;
+        emit VotingStatusReset(_voterAddress, msg.sender);
+    }
+
+    /// @notice Admin function to add multiple voters in a batch
+    /// @dev Only owner can call this function
+    /// @param _voterAddresses Array of voter addresses
+    /// @param _names Array of voter names
+    /// @param _ages Array of voter ages
+    /// @param _genders Array of voter genders
+    /// @param _presentAddresses Array of voter present addresses
+    /// @param _hasVoted Array of voter voting statuses
+    /// @return Number of voters successfully added
+    function adminBatchAddVoters(
+        address[] calldata _voterAddresses,
+        string[] calldata _names,
+        uint256[] calldata _ages,
+        Gender[] calldata _genders,
+        string[] calldata _presentAddresses,
+        bool[] calldata _hasVoted
+    ) external onlyOwner returns (uint256) {
+        // Check all arrays have the same length
+        uint256 length = _voterAddresses.length;
+        require(
+            length == _names.length &&
+                length == _ages.length &&
+                length == _genders.length &&
+                length == _presentAddresses.length &&
+                length == _hasVoted.length,
+            "Array lengths must match"
+        );
+
+        uint256 addedCount = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            address voterAddress = _voterAddresses[i];
+
+            if (voterAddress == address(0)) continue;
+
+            bool alreadyRegistered = s_voters[voterAddress].isRegistered;
+
+            s_voters[voterAddress] = Voter({
+                name: _names[i],
+                age: _ages[i],
+                gender: _genders[i],
+                presentAddress: _presentAddresses[i],
+                hasVoted: _hasVoted[i],
+                isRegistered: true
+            });
+
+            // Add to address array only if not already registered
+            if (!alreadyRegistered) {
+                s_voterAddresses.push(voterAddress);
+            }
+
+            emit AdminAddedVoter(voterAddress, msg.sender);
+            addedCount++;
+        }
+
+        return addedCount;
+    }
+
     /// @notice Batch import selected voters from another VoterDatabase contract
     /// @dev Only owner can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     /// @param _voterAddresses Array of voter addresses to import
     /// @return Number of voters successfully imported
-    function batchImportVoters(
+    function adminBatchImportVoters(
         address _sourceContract,
         address[] calldata _voterAddresses
     ) external onlyOwner returns (uint256) {
@@ -405,5 +588,11 @@ contract VoterDatabase {
         returns (bool hasVoted)
     {
         return s_voters[msg.sender].hasVoted;
+    }
+
+    /// @notice Get the total number of registered voters
+    /// @return The count of registered voters
+    function getVoterCount() public view onlyOwner returns (uint256) {
+        return s_voterAddresses.length;
     }
 }
