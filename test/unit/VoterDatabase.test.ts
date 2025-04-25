@@ -611,59 +611,6 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(voterDetails[4], false);
       });
     });
-
-    describe("adminBatchAddVoters", function () {
-      it("should revert if called by non-owner", async function () {
-        const { voterDatabase, otherAccount, thirdAccount } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        await expect(
-          voterDatabase.write.adminBatchAddVoters(
-            [
-              [otherAccount.account.address, thirdAccount.account.address],
-              ["Oliver", "Patricia"],
-              [BigInt(35), BigInt(42)],
-              [0, 1],
-              ["Address 1", "Address 2"],
-              [false, false],
-            ],
-            { account: otherAccount.account }
-          )
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
-      });
-
-      it("should successfully add multiple voters", async function () {
-        const { voterDatabase, otherAccount, thirdAccount, publicClient } =
-          await loadFixture(deployVoterDatabaseFixture);
-        const hash = await voterDatabase.write.adminBatchAddVoters([
-          [otherAccount.account.address, thirdAccount.account.address],
-          ["Oliver", "Patricia"],
-          [BigInt(35), BigInt(42)],
-          [0, 1],
-          ["Address 1", "Address 2"],
-          [false, false],
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash });
-
-        // Verify the first voter
-        let voterDetails = await voterDatabase.read.getVoterDetails([
-          otherAccount.account.address,
-        ]);
-        assert.equal(voterDetails[0], "Oliver");
-        assert.equal(voterDetails[1], 35n);
-
-        // Verify the second voter
-        voterDetails = await voterDatabase.read.getVoterDetails([
-          thirdAccount.account.address,
-        ]);
-        assert.equal(voterDetails[0], "Patricia");
-        assert.equal(voterDetails[1], 42n);
-
-        // Check voter count
-        const voterCount = await voterDatabase.read.getVoterCount();
-        assert.equal(voterCount, 2n);
-      });
-    });
   });
 
   describe("Query Functions", function () {
@@ -776,31 +723,6 @@ describe("VoterDatabase Unit Tests", function () {
         await expect(
           voterDatabase.read.getVoterCount({ account: otherAccount.account })
         ).to.be.rejectedWith("VoterDatabase__NotOwner");
-      });
-
-      it("should return correct list of voters and count", async function () {
-        const { voterDatabase, otherAccount, thirdAccount, publicClient } =
-          await loadFixture(deployVoterDatabaseFixture);
-        // Add multiple voters through admin function
-        const hash = await voterDatabase.write.adminBatchAddVoters([
-          [otherAccount.account.address, thirdAccount.account.address],
-          ["Ursula", "Victor"],
-          [BigInt(45), BigInt(50)],
-          [1, 0],
-          ["Address 1", "Address 2"],
-          [false, false],
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash });
-
-        // Get all voters
-        const allVoters = await voterDatabase.read.getAllVoters();
-        expect(allVoters).to.have.lengthOf(2);
-        assert.equal(allVoters[0], getAddress(otherAccount.account.address));
-        assert.equal(allVoters[1], getAddress(thirdAccount.account.address));
-
-        // Get count
-        const count = await voterDatabase.read.getVoterCount();
-        assert.equal(count, 2n);
       });
     });
   });

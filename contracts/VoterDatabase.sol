@@ -397,64 +397,6 @@ contract VoterDatabase {
         emit VotingStatusReset(_voterAddress, msg.sender);
     }
 
-    /// @notice Admin function to add multiple voters in a batch
-    /// @dev Only owner can call this function
-    /// @param _voterAddresses Array of voter addresses
-    /// @param _names Array of voter names
-    /// @param _ages Array of voter ages
-    /// @param _genders Array of voter genders
-    /// @param _presentAddresses Array of voter present addresses
-    /// @param _hasVoted Array of voter voting statuses
-    /// @return Number of voters successfully added
-    function adminBatchAddVoters(
-        address[] calldata _voterAddresses,
-        string[] calldata _names,
-        uint256[] calldata _ages,
-        Gender[] calldata _genders,
-        string[] calldata _presentAddresses,
-        bool[] calldata _hasVoted
-    ) external onlyOwner returns (uint256) {
-        // Check all arrays have the same length
-        uint256 length = _voterAddresses.length;
-        require(
-            length == _names.length &&
-                length == _ages.length &&
-                length == _genders.length &&
-                length == _presentAddresses.length &&
-                length == _hasVoted.length,
-            "Array lengths must match"
-        );
-
-        uint256 addedCount = 0;
-
-        for (uint256 i = 0; i < length; i++) {
-            address voterAddress = _voterAddresses[i];
-
-            if (voterAddress == address(0)) continue;
-
-            bool alreadyRegistered = s_voters[voterAddress].isRegistered;
-
-            s_voters[voterAddress] = Voter({
-                name: _names[i],
-                age: _ages[i],
-                gender: _genders[i],
-                presentAddress: _presentAddresses[i],
-                hasVoted: _hasVoted[i],
-                isRegistered: true
-            });
-
-            // Add to address array only if not already registered
-            if (!alreadyRegistered) {
-                s_voterAddresses.push(voterAddress);
-            }
-
-            emit AdminAddedVoter(voterAddress, msg.sender);
-            addedCount++;
-        }
-
-        return addedCount;
-    }
-
     /// @notice Batch import selected voters from another VoterDatabase contract
     /// @dev Only owner can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract

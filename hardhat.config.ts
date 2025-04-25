@@ -37,18 +37,6 @@ const config: HardhatUserConfig = {
 
   solidity: {
     version: "0.8.28",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
-        details: {
-          yulDetails: {
-            optimizerSteps: "u",
-          },
-        },
-      },
-      viaIR: true,
-    },
   },
   mocha: {
     timeout: 200000, // 200 seconds max for running tests
