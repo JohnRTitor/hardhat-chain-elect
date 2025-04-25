@@ -20,251 +20,253 @@ describe("VoterDatabase Unit Tests", function () {
     return { voterDatabase, owner, otherAccount, thirdAccount, publicClient };
   }
 
-  describe("addVoter", function () {
-    it("should revert if under 18", async function () {
-      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-      await expect(
-        voterDatabase.write.addVoter(["Alice", BigInt(17), 0, "Some Address"])
-      ).to.be.rejectedWith("VoterDatabase__NotEligible");
-    });
+  describe("Voter Functions", function () {
+    describe("addVoter", function () {
+      it("should revert if under 18", async function () {
+        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+        await expect(
+          voterDatabase.write.addVoter(["Alice", BigInt(17), 0, "Some Address"])
+        ).to.be.rejectedWith("VoterDatabase__NotEligible");
+      });
 
-    it("should revert if already registered", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash = await voterDatabase.write.addVoter([
-        "Alice",
-        BigInt(20),
-        1,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash });
-      await expect(
-        voterDatabase.write.addVoter(["Alice", BigInt(20), 1, "Some Address"])
-      ).to.be.rejectedWith("VoterDatabase__AlreadyRegistered");
-    });
-
-    it("should emit VoterRegistered on success", async function () {
-      const { voterDatabase, owner, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash = await voterDatabase.write.addVoter([
-        "Alice",
-        BigInt(20),
-        0,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      const events = await voterDatabase.getEvents.VoterRegistered();
-      expect(events).to.have.lengthOf(1);
-      assert.equal(events[0].args.voter, getAddress(owner.account.address));
-    });
-
-    it("should correctly store voter details", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash = await voterDatabase.write.addVoter([
-        "Alice",
-        BigInt(25),
-        0,
-        "123 Main St",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      const details = await voterDatabase.read.getMyDetails();
-      assert.equal(details[0], "Alice");
-      assert.equal(details[1], 25n);
-      assert.equal(details[2], 0);
-      assert.equal(details[3], "123 Main St");
-      assert.equal(details[4], false); // hasVoted should be false
-    });
-  });
-
-  describe("updateVoter", function () {
-    it("should revert if not registered", async function () {
-      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-      await expect(
-        voterDatabase.write.updateVoter(["Bob", BigInt(30), 1, "New Address"])
-      ).to.be.rejectedWith("VoterDatabase__NotRegistered");
-    });
-
-    it("should revert if already voted", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Bob",
-        BigInt(30),
-        1,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
-
-      const hash2 = await voterDatabase.write.markVoted();
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
-
-      await expect(
-        voterDatabase.write.updateVoter([
-          "BobUpdated",
-          BigInt(31),
+      it("should revert if already registered", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash = await voterDatabase.write.addVoter([
+          "Alice",
+          BigInt(20),
           1,
-          "Updated Address",
-        ])
-      ).to.be.rejectedWith("VoterDatabase__CannotUpdateAfterVoting");
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+        await expect(
+          voterDatabase.write.addVoter(["Alice", BigInt(20), 1, "Some Address"])
+        ).to.be.rejectedWith("VoterDatabase__AlreadyRegistered");
+      });
+
+      it("should emit VoterRegistered on success", async function () {
+        const { voterDatabase, owner, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash = await voterDatabase.write.addVoter([
+          "Alice",
+          BigInt(20),
+          0,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        const events = await voterDatabase.getEvents.VoterRegistered();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(events[0].args.voter, getAddress(owner.account.address));
+      });
+
+      it("should correctly store voter details", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash = await voterDatabase.write.addVoter([
+          "Alice",
+          BigInt(25),
+          0,
+          "123 Main St",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        const details = await voterDatabase.read.getMyDetails();
+        assert.equal(details[0], "Alice");
+        assert.equal(details[1], 25n);
+        assert.equal(details[2], 0);
+        assert.equal(details[3], "123 Main St");
+        assert.equal(details[4], false); // hasVoted should be false
+      });
     });
 
-    it("should emit VoterUpdated on success", async function () {
-      const { voterDatabase, owner, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Charlie",
-        BigInt(22),
-        0,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+    describe("updateVoter", function () {
+      it("should revert if not registered", async function () {
+        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+        await expect(
+          voterDatabase.write.updateVoter(["Bob", BigInt(30), 1, "New Address"])
+        ).to.be.rejectedWith("VoterDatabase__NotRegistered");
+      });
 
-      const hash2 = await voterDatabase.write.updateVoter([
-        "Charles",
-        BigInt(23),
-        0,
-        "New Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+      it("should revert if already voted", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Bob",
+          BigInt(30),
+          1,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-      const events = await voterDatabase.getEvents.VoterUpdated();
-      expect(events).to.have.lengthOf(1);
-      assert.equal(events[0].args.voter, getAddress(owner.account.address));
+        const hash2 = await voterDatabase.write.markVoted();
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        await expect(
+          voterDatabase.write.updateVoter([
+            "BobUpdated",
+            BigInt(31),
+            1,
+            "Updated Address",
+          ])
+        ).to.be.rejectedWith("VoterDatabase__CannotUpdateAfterVoting");
+      });
+
+      it("should emit VoterUpdated on success", async function () {
+        const { voterDatabase, owner, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Charlie",
+          BigInt(22),
+          0,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await voterDatabase.write.updateVoter([
+          "Charles",
+          BigInt(23),
+          0,
+          "New Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const events = await voterDatabase.getEvents.VoterUpdated();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(events[0].args.voter, getAddress(owner.account.address));
+      });
+
+      it("should correctly update voter details", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "David",
+          BigInt(40),
+          0,
+          "Old Street",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await voterDatabase.write.updateVoter([
+          "Dave",
+          BigInt(41),
+          1,
+          "New Street",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const details = await voterDatabase.read.getMyDetails();
+        assert.equal(details[0], "Dave");
+        assert.equal(details[1], 41n);
+        assert.equal(details[2], 1);
+        assert.equal(details[3], "New Street");
+        assert.equal(details[4], false); // hasVoted should still be false
+      });
     });
 
-    it("should correctly update voter details", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "David",
-        BigInt(40),
-        0,
-        "Old Street",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+    describe("deleteVoter", function () {
+      it("should revert if not registered", async function () {
+        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+        await expect(voterDatabase.write.deleteVoter()).to.be.rejectedWith(
+          "VoterDatabase__NotRegistered"
+        );
+      });
 
-      const hash2 = await voterDatabase.write.updateVoter([
-        "Dave",
-        BigInt(41),
-        1,
-        "New Street",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+      it("should emit VoterDeleted on success", async function () {
+        const { voterDatabase, owner, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Emily",
+          BigInt(30),
+          1,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-      const details = await voterDatabase.read.getMyDetails();
-      assert.equal(details[0], "Dave");
-      assert.equal(details[1], 41n);
-      assert.equal(details[2], 1);
-      assert.equal(details[3], "New Street");
-      assert.equal(details[4], false); // hasVoted should still be false
-    });
-  });
+        const hash2 = await voterDatabase.write.deleteVoter();
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-  describe("deleteVoter", function () {
-    it("should revert if not registered", async function () {
-      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-      await expect(voterDatabase.write.deleteVoter()).to.be.rejectedWith(
-        "VoterDatabase__NotRegistered"
-      );
-    });
+        const events = await voterDatabase.getEvents.VoterDeleted();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(events[0].args.voter, getAddress(owner.account.address));
+      });
 
-    it("should emit VoterDeleted on success", async function () {
-      const { voterDatabase, owner, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Emily",
-        BigInt(30),
-        1,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+      it("should remove voter from registration", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Frank",
+          BigInt(25),
+          0,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-      const hash2 = await voterDatabase.write.deleteVoter();
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+        const hash2 = await voterDatabase.write.deleteVoter();
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-      const events = await voterDatabase.getEvents.VoterDeleted();
-      expect(events).to.have.lengthOf(1);
-      assert.equal(events[0].args.voter, getAddress(owner.account.address));
+        const isRegistered = await voterDatabase.read.getMyRegistrationStatus();
+        assert.equal(isRegistered, false);
+      });
     });
 
-    it("should remove voter from registration", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Frank",
-        BigInt(25),
-        0,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+    describe("markVoted", function () {
+      it("should revert if not registered", async function () {
+        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+        await expect(voterDatabase.write.markVoted()).to.be.rejectedWith(
+          "VoterDatabase__NotRegistered"
+        );
+      });
 
-      const hash2 = await voterDatabase.write.deleteVoter();
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+      it("should emit VoterVoted on success", async function () {
+        const { voterDatabase, owner, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Grace",
+          BigInt(35),
+          1,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-      const isRegistered = await voterDatabase.read.getMyRegistrationStatus();
-      assert.equal(isRegistered, false);
-    });
-  });
+        const hash2 = await voterDatabase.write.markVoted();
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-  describe("markVoted", function () {
-    it("should revert if not registered", async function () {
-      const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-      await expect(voterDatabase.write.markVoted()).to.be.rejectedWith(
-        "VoterDatabase__NotRegistered"
-      );
-    });
+        const events = await voterDatabase.getEvents.VoterVoted();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(events[0].args.voter, getAddress(owner.account.address));
+      });
 
-    it("should emit VoterVoted on success", async function () {
-      const { voterDatabase, owner, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Grace",
-        BigInt(35),
-        1,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
+      it("should update voter's voting status", async function () {
+        const { voterDatabase, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash1 = await voterDatabase.write.addVoter([
+          "Helen",
+          BigInt(42),
+          1,
+          "Some Address",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-      const hash2 = await voterDatabase.write.markVoted();
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
+        const statusBefore = await voterDatabase.read.getMyVotingStatus();
+        assert.equal(statusBefore, false);
 
-      const events = await voterDatabase.getEvents.VoterVoted();
-      expect(events).to.have.lengthOf(1);
-      assert.equal(events[0].args.voter, getAddress(owner.account.address));
-    });
+        const hash2 = await voterDatabase.write.markVoted();
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-    it("should update voter's voting status", async function () {
-      const { voterDatabase, publicClient } = await loadFixture(
-        deployVoterDatabaseFixture
-      );
-      const hash1 = await voterDatabase.write.addVoter([
-        "Helen",
-        BigInt(42),
-        1,
-        "Some Address",
-      ]);
-      await publicClient.waitForTransactionReceipt({ hash: hash1 });
-
-      const statusBefore = await voterDatabase.read.getMyVotingStatus();
-      assert.equal(statusBefore, false);
-
-      const hash2 = await voterDatabase.write.markVoted();
-      await publicClient.waitForTransactionReceipt({ hash: hash2 });
-
-      const statusAfter = await voterDatabase.read.getMyVotingStatus();
-      assert.equal(statusAfter, true);
+        const statusAfter = await voterDatabase.read.getMyVotingStatus();
+        assert.equal(statusAfter, true);
+      });
     });
   });
 
@@ -339,6 +341,7 @@ describe("VoterDatabase Unit Tests", function () {
               BigInt(26),
               1,
               "New Address",
+              false,
             ],
             { account: otherAccount.account }
           )
@@ -356,6 +359,7 @@ describe("VoterDatabase Unit Tests", function () {
             BigInt(26),
             1,
             "New Address",
+            false,
           ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
@@ -381,6 +385,7 @@ describe("VoterDatabase Unit Tests", function () {
           BigInt(26),
           1,
           "New Address",
+          true,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -415,18 +420,19 @@ describe("VoterDatabase Unit Tests", function () {
           BigInt(31),
           1,
           "New Address",
+          true,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
         // Verify details were updated but voting status preserved
-        const voterDetails = await voterDatabase.read.getVoterDetails([
+        const voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
         assert.equal(voterDetails[0], "Jerry Updated");
         assert.equal(voterDetails[1], 31n);
         assert.equal(voterDetails[2], 1);
         assert.equal(voterDetails[3], "New Address");
-        assert.equal(voterDetails[4], true); // hasVoted should still be true
+        assert.equal(voterDetails[4], true);
       });
     });
 
@@ -503,7 +509,9 @@ describe("VoterDatabase Unit Tests", function () {
 
         // Try to get voter details
         await expect(
-          voterDatabase.read.getVoterDetails([otherAccount.account.address])
+          voterDatabase.read.adminGetVoterDetails([
+            otherAccount.account.address,
+          ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
     });
@@ -554,7 +562,7 @@ describe("VoterDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const events = await voterDatabase.getEvents.VotingStatusReset();
+        const events = await voterDatabase.getEvents.AdminUpdatedVotingStatus();
         expect(events).to.have.lengthOf(1);
         assert.equal(
           events[0].args.voter,
@@ -579,7 +587,7 @@ describe("VoterDatabase Unit Tests", function () {
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
         // Verify initial state
-        let voterDetails = await voterDatabase.read.getVoterDetails([
+        let voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
         assert.equal(voterDetails[4], false);
@@ -592,7 +600,7 @@ describe("VoterDatabase Unit Tests", function () {
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
         // Verify updated state
-        voterDetails = await voterDatabase.read.getVoterDetails([
+        voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
         assert.equal(voterDetails[4], true);
@@ -605,7 +613,7 @@ describe("VoterDatabase Unit Tests", function () {
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Verify reset state
-        voterDetails = await voterDatabase.read.getVoterDetails([
+        voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
         assert.equal(voterDetails[4], false);
@@ -614,115 +622,276 @@ describe("VoterDatabase Unit Tests", function () {
   });
 
   describe("Query Functions", function () {
-    describe("getMyDetails", function () {
-      it("should revert if not registered", async function () {
-        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-        await expect(voterDatabase.read.getMyDetails()).to.be.rejectedWith(
-          "VoterDatabase__NotRegistered"
-        );
+    describe("Voter Query Functions", function () {
+      describe("getMyDetails", function () {
+        it("should revert if not registered", async function () {
+          const { voterDatabase } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          await expect(voterDatabase.read.getMyDetails()).to.be.rejectedWith(
+            "VoterDatabase__NotRegistered"
+          );
+        });
+
+        it("should return correct voter details", async function () {
+          const { voterDatabase, publicClient } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          const hash = await voterDatabase.write.addVoter([
+            "Quinn",
+            BigInt(38),
+            0,
+            "456 Oak St",
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash });
+
+          const details = await voterDatabase.read.getMyDetails();
+          assert.equal(details[0], "Quinn");
+          assert.equal(details[1], 38n);
+          assert.equal(details[2], 0);
+          assert.equal(details[3], "456 Oak St");
+          assert.equal(details[4], false);
+        });
       });
 
-      it("should return correct voter details", async function () {
-        const { voterDatabase, publicClient } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        const hash = await voterDatabase.write.addVoter([
-          "Quinn",
-          BigInt(38),
-          0,
-          "456 Oak St",
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash });
+      describe("getMyRegistrationStatus", function () {
+        it("should return false if not registered", async function () {
+          const { voterDatabase } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          const status = await voterDatabase.read.getMyRegistrationStatus();
+          assert.equal(status, false);
+        });
 
-        const details = await voterDatabase.read.getMyDetails();
-        assert.equal(details[0], "Quinn");
-        assert.equal(details[1], 38n);
-        assert.equal(details[2], 0);
-        assert.equal(details[3], "456 Oak St");
-        assert.equal(details[4], false);
+        it("should return true if registered", async function () {
+          const { voterDatabase, publicClient } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          const hash = await voterDatabase.write.addVoter([
+            "Ryan",
+            BigInt(27),
+            0,
+            "Some Address",
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash });
+
+          const status = await voterDatabase.read.getMyRegistrationStatus();
+          assert.equal(status, true);
+        });
+      });
+
+      describe("getMyVotingStatus", function () {
+        it("should revert if not registered", async function () {
+          const { voterDatabase } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          await expect(
+            voterDatabase.read.getMyVotingStatus()
+          ).to.be.rejectedWith("VoterDatabase__NotRegistered");
+        });
+
+        it("should return false if not voted", async function () {
+          const { voterDatabase, publicClient } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          const hash = await voterDatabase.write.addVoter([
+            "Samantha",
+            BigInt(33),
+            1,
+            "Some Address",
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash });
+
+          const status = await voterDatabase.read.getMyVotingStatus();
+          assert.equal(status, false);
+        });
+
+        it("should return true if voted", async function () {
+          const { voterDatabase, publicClient } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          const hash1 = await voterDatabase.write.addVoter([
+            "Tyler",
+            BigInt(29),
+            0,
+            "Some Address",
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+          const hash2 = await voterDatabase.write.markVoted();
+          await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+          const status = await voterDatabase.read.getMyVotingStatus();
+          assert.equal(status, true);
+        });
       });
     });
 
-    describe("getMyRegistrationStatus", function () {
-      it("should return false if not registered", async function () {
-        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-        const status = await voterDatabase.read.getMyRegistrationStatus();
-        assert.equal(status, false);
+    describe("Admin Query Functions", function () {
+      describe("adminGetAllVoters and adminGetVoterCount", function () {
+        it("should revert if called by non-owner", async function () {
+          const { voterDatabase, otherAccount } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          await expect(
+            voterDatabase.read.adminGetAllVoters({
+              account: otherAccount.account,
+            })
+          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+
+          await expect(
+            voterDatabase.read.adminGetVoterCount({
+              account: otherAccount.account,
+            })
+          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        });
+
+        it("should return empty array when no voters registered", async function () {
+          const { voterDatabase } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+
+          const voters = await voterDatabase.read.adminGetAllVoters();
+          assert.equal(voters.length, 0);
+
+          const count = await voterDatabase.read.adminGetVoterCount();
+          assert.equal(count, 0n);
+        });
+
+        it("should return all registered voters", async function () {
+          const { voterDatabase, otherAccount, thirdAccount, publicClient } =
+            await loadFixture(deployVoterDatabaseFixture);
+
+          // Add two voters
+          const hash1 = await voterDatabase.write.adminAddVoter([
+            otherAccount.account.address,
+            "User One",
+            BigInt(30),
+            0,
+            "Address One",
+            false,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+          const hash2 = await voterDatabase.write.adminAddVoter([
+            thirdAccount.account.address,
+            "User Two",
+            BigInt(35),
+            1,
+            "Address Two",
+            true,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+          // Get all voters
+          const voters = await voterDatabase.read.adminGetAllVoters();
+          assert.equal(voters.length, 2);
+          assert.include(
+            voters.map((addr) => getAddress(addr)),
+            getAddress(otherAccount.account.address)
+          );
+          assert.include(
+            voters.map((addr) => getAddress(addr)),
+            getAddress(thirdAccount.account.address)
+          );
+
+          // Get voter count
+          const count = await voterDatabase.read.adminGetVoterCount();
+          assert.equal(count, 2n);
+        });
+
+        it("should update correctly after removing a voter", async function () {
+          const { voterDatabase, otherAccount, thirdAccount, publicClient } =
+            await loadFixture(deployVoterDatabaseFixture);
+
+          // Add two voters
+          const hash1 = await voterDatabase.write.adminAddVoter([
+            otherAccount.account.address,
+            "User One",
+            BigInt(30),
+            0,
+            "Address One",
+            false,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+          const hash2 = await voterDatabase.write.adminAddVoter([
+            thirdAccount.account.address,
+            "User Two",
+            BigInt(35),
+            1,
+            "Address Two",
+            true,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+          // Remove one voter
+          const hash3 = await voterDatabase.write.adminRemoveVoter([
+            otherAccount.account.address,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+          // Get all voters - should have one remaining
+          const voters = await voterDatabase.read.adminGetAllVoters();
+          assert.equal(voters.length, 1);
+          assert.equal(
+            getAddress(voters[0]),
+            getAddress(thirdAccount.account.address)
+          );
+
+          // Get voter count
+          const count = await voterDatabase.read.adminGetVoterCount();
+          assert.equal(count, 1n);
+        });
       });
 
-      it("should return true if registered", async function () {
-        const { voterDatabase, publicClient } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        const hash = await voterDatabase.write.addVoter([
-          "Ryan",
-          BigInt(27),
-          0,
-          "Some Address",
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash });
+      describe("adminGetVoterDetails", function () {
+        it("should revert if called by non-owner", async function () {
+          const { voterDatabase, otherAccount } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          await expect(
+            voterDatabase.read.adminGetVoterDetails(
+              [otherAccount.account.address],
+              { account: otherAccount.account }
+            )
+          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        });
 
-        const status = await voterDatabase.read.getMyRegistrationStatus();
-        assert.equal(status, true);
-      });
-    });
+        it("should revert if voter not registered", async function () {
+          const { voterDatabase, otherAccount } = await loadFixture(
+            deployVoterDatabaseFixture
+          );
+          await expect(
+            voterDatabase.read.adminGetVoterDetails([
+              otherAccount.account.address,
+            ])
+          ).to.be.rejectedWith("VoterDatabase__NotRegistered");
+        });
 
-    describe("getMyVotingStatus", function () {
-      it("should revert if not registered", async function () {
-        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
-        await expect(voterDatabase.read.getMyVotingStatus()).to.be.rejectedWith(
-          "VoterDatabase__NotRegistered"
-        );
-      });
+        it("should return correct voter details", async function () {
+          const { voterDatabase, otherAccount, publicClient } =
+            await loadFixture(deployVoterDatabaseFixture);
+          const hash = await voterDatabase.write.adminAddVoter([
+            otherAccount.account.address,
+            "Test User",
+            BigInt(42),
+            1,
+            "Test Address",
+            true,
+          ]);
+          await publicClient.waitForTransactionReceipt({ hash });
 
-      it("should return false if not voted", async function () {
-        const { voterDatabase, publicClient } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        const hash = await voterDatabase.write.addVoter([
-          "Samantha",
-          BigInt(33),
-          1,
-          "Some Address",
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash });
+          const details = await voterDatabase.read.adminGetVoterDetails([
+            otherAccount.account.address,
+          ]);
 
-        const status = await voterDatabase.read.getMyVotingStatus();
-        assert.equal(status, false);
-      });
-
-      it("should return true if voted", async function () {
-        const { voterDatabase, publicClient } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        const hash1 = await voterDatabase.write.addVoter([
-          "Tyler",
-          BigInt(29),
-          0,
-          "Some Address",
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash: hash1 });
-
-        const hash2 = await voterDatabase.write.markVoted();
-        await publicClient.waitForTransactionReceipt({ hash: hash2 });
-
-        const status = await voterDatabase.read.getMyVotingStatus();
-        assert.equal(status, true);
-      });
-    });
-
-    describe("getAllVoters and getVoterCount", function () {
-      it("should revert if called by non-owner", async function () {
-        const { voterDatabase, otherAccount } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-        await expect(
-          voterDatabase.read.getAllVoters({ account: otherAccount.account })
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
-
-        await expect(
-          voterDatabase.read.getVoterCount({ account: otherAccount.account })
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+          assert.equal(details[0], "Test User");
+          assert.equal(details[1], 42n);
+          assert.equal(details[2], 1);
+          assert.equal(details[3], "Test Address");
+          assert.equal(details[4], true);
+        });
       });
     });
   });

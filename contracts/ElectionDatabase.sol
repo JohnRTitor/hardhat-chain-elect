@@ -190,7 +190,7 @@ contract ElectionDatabase {
         // this mark voted function marks the voter, we don't want people
         // to change their identity after they have voted, so mark it on the
         // VoterDatabase, ideally this should be called once, and not per election
-        s_voterDB.markVoted(msg.sender);
+        s_voterDB.markVoted();
 
         emit VoterVoted(_electionId, msg.sender, _candidate);
     }
