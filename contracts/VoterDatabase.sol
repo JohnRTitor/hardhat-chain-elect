@@ -31,6 +31,15 @@ error VoterDatabase__ImportFailed();
 /// @notice Thrown when an invalid address is provided
 error VoterDatabase__InvalidAddress();
 
+/// @notice Thrown when a non-admin tries to access admin functionality
+error VoterDatabase__NotAdmin();
+
+/// @notice Thrown when trying to add an address that's already an admin
+error VoterDatabase__AlreadyAdmin();
+
+/// @notice Thrown when trying to remove an address that's not an admin
+error VoterDatabase__AdminNotFound();
+
 contract VoterDatabase {
     /// @notice Enum representing gender
     enum Gender {
@@ -51,6 +60,10 @@ contract VoterDatabase {
     address private immutable i_owner;
     mapping(address => Voter) private s_voters;
     address[] private s_voterAddresses;
+
+    // Admin system
+    mapping(address => bool) private s_admins;
+    address[] private s_adminAddresses;
 
     /// @notice Emitted when a new voter is registered
     /// @param voter The address of the newly registered voter
@@ -99,6 +112,16 @@ contract VoterDatabase {
         address indexed admin
     );
 
+    /// @notice Emitted when a new admin is added
+    /// @param admin The address of the newly added admin
+    /// @param owner The address that added the admin (owner)
+    event AdminAdded(address indexed admin, address indexed owner);
+
+    /// @notice Emitted when an admin is removed
+    /// @param admin The address of the removed admin
+    /// @param owner The address that removed the admin (owner)
+    event AdminRemoved(address indexed admin, address indexed owner);
+
     /// @notice Functions with this modifier can only be called by registered voters
     modifier onlyRegistered() {
         if (!s_voters[msg.sender].isRegistered)
@@ -109,6 +132,13 @@ contract VoterDatabase {
     /// @notice Restricts function access to the owner/election manager
     modifier onlyOwner() {
         if (msg.sender != i_owner) revert VoterDatabase__NotOwner();
+        _;
+    }
+
+    /// @notice Restricts function access to admins (including the owner)
+    modifier onlyAdmin() {
+        if (msg.sender != i_owner && !s_admins[msg.sender])
+            revert VoterDatabase__NotAdmin();
         _;
     }
 
@@ -197,7 +227,7 @@ contract VoterDatabase {
     }
 
     /// @notice Admin function to add a voter directly
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter to add
     /// @param _name Name of the voter
     /// @param _age Age of the voter
@@ -211,7 +241,7 @@ contract VoterDatabase {
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
-    ) external onlyOwner {
+    ) external onlyAdmin {
         if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
 
         // Check if already registered
@@ -233,7 +263,7 @@ contract VoterDatabase {
     }
 
     /// @notice Admin function to update voter details (can update even if voter has voted)
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter to update
     /// @param _name Updated name
     /// @param _age Updated age
@@ -247,7 +277,7 @@ contract VoterDatabase {
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
-    ) external onlyOwner {
+    ) external onlyAdmin {
         if (!s_voters[_voterAddress].isRegistered)
             revert VoterDatabase__NotRegistered();
 
@@ -264,9 +294,9 @@ contract VoterDatabase {
     }
 
     /// @notice Admin function to remove a voter
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter to remove
-    function adminRemoveVoter(address _voterAddress) external onlyOwner {
+    function adminRemoveVoter(address _voterAddress) external onlyAdmin {
         if (!s_voters[_voterAddress].isRegistered)
             revert VoterDatabase__NotRegistered();
 
@@ -288,13 +318,13 @@ contract VoterDatabase {
     }
 
     /// @notice Admin function to toggle a voter's voting status
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter
     /// @param _hasVoted New voting status to set
     function adminSetVotingStatus(
         address _voterAddress,
         bool _hasVoted
-    ) external onlyOwner {
+    ) external onlyAdmin {
         if (!s_voters[_voterAddress].isRegistered)
             revert VoterDatabase__NotRegistered();
 
@@ -303,13 +333,13 @@ contract VoterDatabase {
     }
 
     /// @notice Import a specific voter from another VoterDatabase contract
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     /// @param _voterAddress The address of the voter to import
     function adminImportVoter(
         address _sourceContract,
         address _voterAddress
-    ) external onlyOwner {
+    ) external onlyAdmin {
         // Skip if voter is already registered in this contract
         if (s_voters[_voterAddress].isRegistered) {
             revert VoterDatabase__AlreadyRegistered();
@@ -345,13 +375,13 @@ contract VoterDatabase {
     }
 
     /// @notice Batch import selected voters from another VoterDatabase contract
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     /// @param _voterAddresses Array of voter addresses to import
     function adminBatchImportVoters(
         address _sourceContract,
         address[] calldata _voterAddresses
-    ) external onlyOwner {
+    ) external onlyAdmin {
         IVoterDatabase source = IVoterDatabase(_sourceContract);
         uint256 importedCount = 0;
 
@@ -393,9 +423,9 @@ contract VoterDatabase {
     }
 
     /// @notice Import all voters from another VoterDatabase contract
-    /// @dev Only owner can call this function
+    /// @dev Only owner/admins can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
-    function adminImportAllVoters(address _sourceContract) external onlyOwner {
+    function adminImportAllVoters(address _sourceContract) external onlyAdmin {
         IVoterDatabase source = IVoterDatabase(_sourceContract);
         address[] memory voters;
 
@@ -445,7 +475,7 @@ contract VoterDatabase {
         emit VotersImported(_sourceContract, importedCount);
     }
 
-    /// @notice Get details of a specific voter (only callable by owner for privacy reasons)
+    /// @notice Get details of a specific voter (only callable by owner/admins for privacy reasons)
     /// @param _voterAddress Address of the voter
     /// @return name The voter's name
     /// @return age The voter's age
@@ -457,7 +487,7 @@ contract VoterDatabase {
     )
         public
         view
-        onlyOwner
+        onlyAdmin
         returns (
             string memory name,
             uint256 age,
@@ -481,7 +511,7 @@ contract VoterDatabase {
 
     /// @notice Get the total number of registered voters
     /// @return The count of registered voters
-    function adminGetVoterCount() public view onlyOwner returns (uint256) {
+    function adminGetVoterCount() public view onlyAdmin returns (uint256) {
         return s_voterAddresses.length;
     }
 
@@ -490,10 +520,77 @@ contract VoterDatabase {
     function adminGetAllVoters()
         public
         view
-        onlyOwner
+        onlyAdmin
         returns (address[] memory)
     {
         return s_voterAddresses;
+    }
+
+    /// @notice Add a new admin to the system
+    /// @dev Only owner can call this function
+    /// @param _adminAddress Address to be added as admin
+    function addAdmin(address _adminAddress) external onlyOwner {
+        if (_adminAddress == address(0)) revert VoterDatabase__InvalidAddress();
+        if (s_admins[_adminAddress]) revert VoterDatabase__AlreadyAdmin();
+
+        s_admins[_adminAddress] = true;
+        s_adminAddresses.push(_adminAddress);
+
+        emit AdminAdded(_adminAddress, msg.sender);
+    }
+
+    /// @notice Remove an admin from the system
+    /// @dev Only owner can call this function
+    /// @param _adminAddress Address to be removed from admin role
+    function removeAdmin(address _adminAddress) external onlyOwner {
+        if (!s_admins[_adminAddress]) revert VoterDatabase__AdminNotFound();
+
+        // Remove admin from mapping
+        delete s_admins[_adminAddress];
+
+        // Remove from the admin array using swap and pop
+        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
+            if (s_adminAddresses[i] == _adminAddress) {
+                s_adminAddresses[i] = s_adminAddresses[
+                    s_adminAddresses.length - 1
+                ];
+                s_adminAddresses.pop();
+                break;
+            }
+        }
+
+        emit AdminRemoved(_adminAddress, msg.sender);
+    }
+
+    /// @notice Check if an address is an admin
+    /// @param _address Address to check
+    /// @return True if the address is an admin, false otherwise
+    function isAdmin(address _address) public view returns (bool) {
+        return _address == i_owner || s_admins[_address];
+    }
+
+    /// @notice Get the total number of admins (excluding owner)
+    /// @return The count of admins
+    function getAdminCount() public view returns (uint256) {
+        return s_adminAddresses.length;
+    }
+
+    /// @notice Get addresses of all admins (excluding owner)
+    /// @return Array of admin addresses
+    function getAllAdmins() public view returns (address[] memory) {
+        return s_adminAddresses;
+    }
+
+    /// @notice Get the contract owner address
+    /// @return The address of the contract owner
+    function getOwner() public view returns (address) {
+        return i_owner;
+    }
+
+    /// @notice Check if the caller is an admin
+    /// @return True if the caller is an admin, false otherwise
+    function amIAdmin() public view returns (bool) {
+        return isAdmin(msg.sender);
     }
 
     /// @notice Get your own voter details

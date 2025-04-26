@@ -272,7 +272,7 @@ describe("VoterDatabase Unit Tests", function () {
 
   describe("Admin Functions", function () {
     describe("adminAddVoter", function () {
-      it("should revert if called by non-owner", async function () {
+      it("should revert if called by non-admin", async function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
@@ -288,7 +288,7 @@ describe("VoterDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
       });
 
       it("should revert with zero address", async function () {
@@ -329,7 +329,7 @@ describe("VoterDatabase Unit Tests", function () {
     });
 
     describe("adminUpdateVoter", function () {
-      it("should revert if called by non-owner", async function () {
+      it("should revert if called by non-admin", async function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
@@ -345,7 +345,7 @@ describe("VoterDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -437,7 +437,7 @@ describe("VoterDatabase Unit Tests", function () {
     });
 
     describe("adminRemoveVoter", function () {
-      it("should revert if called by non-owner", async function () {
+      it("should revert if called by non-admin", async function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
@@ -445,7 +445,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.adminRemoveVoter([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -517,7 +517,7 @@ describe("VoterDatabase Unit Tests", function () {
     });
 
     describe("adminSetVotingStatus", function () {
-      it("should revert if called by non-owner", async function () {
+      it("should revert if called by non-admin", async function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
@@ -526,7 +526,7 @@ describe("VoterDatabase Unit Tests", function () {
             [otherAccount.account.address, true],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -729,7 +729,7 @@ describe("VoterDatabase Unit Tests", function () {
 
     describe("Admin Query Functions", function () {
       describe("adminGetAllVoters and adminGetVoterCount", function () {
-        it("should revert if called by non-owner", async function () {
+        it("should revert if called by non-admin", async function () {
           const { voterDatabase, otherAccount } = await loadFixture(
             deployVoterDatabaseFixture
           );
@@ -737,13 +737,13 @@ describe("VoterDatabase Unit Tests", function () {
             voterDatabase.read.adminGetAllVoters({
               account: otherAccount.account,
             })
-          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
 
           await expect(
             voterDatabase.read.adminGetVoterCount({
               account: otherAccount.account,
             })
-          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
         });
 
         it("should return empty array when no voters registered", async function () {
@@ -846,7 +846,7 @@ describe("VoterDatabase Unit Tests", function () {
       });
 
       describe("adminGetVoterDetails", function () {
-        it("should revert if called by non-owner", async function () {
+        it("should revert if called by non-admin", async function () {
           const { voterDatabase, otherAccount } = await loadFixture(
             deployVoterDatabaseFixture
           );
@@ -855,7 +855,7 @@ describe("VoterDatabase Unit Tests", function () {
               [otherAccount.account.address],
               { account: otherAccount.account }
             )
-          ).to.be.rejectedWith("VoterDatabase__NotOwner");
+          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
         });
 
         it("should revert if voter not registered", async function () {
@@ -892,6 +892,223 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[3], "Test Address");
           assert.equal(details[4], true);
         });
+      });
+    });
+  });
+
+  describe("Admin Management Functions", function () {
+    describe("addAdmin", function () {
+      it("should revert if called by non-owner", async function () {
+        const { voterDatabase, otherAccount } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        await expect(
+          voterDatabase.write.addAdmin([otherAccount.account.address], {
+            account: otherAccount.account,
+          })
+        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+      });
+
+      it("should revert with zero address", async function () {
+        const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+        await expect(
+          voterDatabase.write.addAdmin([
+            "0x0000000000000000000000000000000000000000",
+          ])
+        ).to.be.rejectedWith("VoterDatabase__InvalidAddress");
+      });
+
+      it("should revert if address is already an admin", async function () {
+        const { voterDatabase, otherAccount, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const hash = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        await expect(
+          voterDatabase.write.addAdmin([otherAccount.account.address])
+        ).to.be.rejectedWith("VoterDatabase__AlreadyAdmin");
+      });
+
+      it("should emit AdminAdded on success", async function () {
+        const { voterDatabase, otherAccount, owner, publicClient } =
+          await loadFixture(deployVoterDatabaseFixture);
+        const hash = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        const events = await voterDatabase.getEvents.AdminAdded();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(
+          events[0].args.admin,
+          getAddress(otherAccount.account.address)
+        );
+        assert.equal(events[0].args.owner, getAddress(owner.account.address));
+      });
+    });
+
+    describe("removeAdmin", function () {
+      it("should revert if called by non-owner", async function () {
+        const { voterDatabase, otherAccount, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        // Make otherAccount an admin first
+        const hash = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        await expect(
+          voterDatabase.write.removeAdmin([otherAccount.account.address], {
+            account: otherAccount.account,
+          })
+        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+      });
+
+      it("should revert if address is not an admin", async function () {
+        const { voterDatabase, otherAccount } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        await expect(
+          voterDatabase.write.removeAdmin([otherAccount.account.address])
+        ).to.be.rejectedWith("VoterDatabase__AdminNotFound");
+      });
+
+      it("should emit AdminRemoved on success", async function () {
+        const { voterDatabase, otherAccount, owner, publicClient } =
+          await loadFixture(deployVoterDatabaseFixture);
+        // Add admin first
+        const hash1 = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        // Then remove
+        const hash2 = await voterDatabase.write.removeAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const events = await voterDatabase.getEvents.AdminRemoved();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(
+          events[0].args.admin,
+          getAddress(otherAccount.account.address)
+        );
+        assert.equal(events[0].args.owner, getAddress(owner.account.address));
+      });
+    });
+
+    describe("Admin Query Functions", function () {
+      it("should correctly identify admin status", async function () {
+        const {
+          voterDatabase,
+          owner,
+          otherAccount,
+          thirdAccount,
+          publicClient,
+        } = await loadFixture(deployVoterDatabaseFixture);
+
+        // Owner should always be admin
+        const isAdminOwner = await voterDatabase.read.isAdmin([
+          owner.account.address,
+        ]);
+        assert.equal(isAdminOwner, true);
+
+        // Other accounts should not be admin initially
+        let isAdminOther = await voterDatabase.read.isAdmin([
+          otherAccount.account.address,
+        ]);
+        assert.equal(isAdminOther, false);
+
+        // Add otherAccount as admin
+        const hash = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        // Now otherAccount should be admin
+        isAdminOther = await voterDatabase.read.isAdmin([
+          otherAccount.account.address,
+        ]);
+        assert.equal(isAdminOther, true);
+
+        // Third account should still not be admin
+        const isAdminThird = await voterDatabase.read.isAdmin([
+          thirdAccount.account.address,
+        ]);
+        assert.equal(isAdminThird, false);
+      });
+
+      it("should return correct admin count and list", async function () {
+        const { voterDatabase, otherAccount, thirdAccount, publicClient } =
+          await loadFixture(deployVoterDatabaseFixture);
+
+        // Initially should have no admins (owner is not counted in admin array)
+        let adminCount = await voterDatabase.read.getAdminCount();
+        assert.equal(adminCount, 0n);
+        let admins = await voterDatabase.read.getAllAdmins();
+        assert.equal(admins.length, 0);
+
+        // Add two admins
+        const hash1 = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+        const hash2 = await voterDatabase.write.addAdmin([
+          thirdAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        // Should now have two admins
+        adminCount = await voterDatabase.read.getAdminCount();
+        assert.equal(adminCount, 2n);
+        admins = await voterDatabase.read.getAllAdmins();
+        assert.equal(admins.length, 2);
+        assert.include(
+          admins.map((addr) => getAddress(addr)),
+          getAddress(otherAccount.account.address)
+        );
+        assert.include(
+          admins.map((addr) => getAddress(addr)),
+          getAddress(thirdAccount.account.address)
+        );
+      });
+
+      it("should correctly report my admin status", async function () {
+        const { voterDatabase, otherAccount, publicClient } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+
+        // Owner should be admin
+        let amIAdmin = await voterDatabase.read.amIAdmin();
+        assert.equal(amIAdmin, true);
+
+        // Add otherAccount as admin
+        const hash = await voterDatabase.write.addAdmin([
+          otherAccount.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        // otherAccount should see itself as admin
+        amIAdmin = await voterDatabase.read.amIAdmin({
+          account: otherAccount.account,
+        });
+        assert.equal(amIAdmin, true);
+      });
+
+      it("should return the correct owner", async function () {
+        const { voterDatabase, owner } = await loadFixture(
+          deployVoterDatabaseFixture
+        );
+        const contractOwner = await voterDatabase.read.getOwner();
+        assert.equal(
+          getAddress(contractOwner),
+          getAddress(owner.account.address)
+        );
       });
     });
   });

@@ -60,6 +60,16 @@ interface IVoterDatabase {
         address indexed admin
     );
 
+    /// @notice Emitted when a new admin is added
+    /// @param admin The address of the newly added admin
+    /// @param owner The address that added the admin (owner)
+    event AdminAdded(address indexed admin, address indexed owner);
+
+    /// @notice Emitted when an admin is removed
+    /// @param admin The address of the removed admin
+    /// @param owner The address that removed the admin (owner)
+    event AdminRemoved(address indexed admin, address indexed owner);
+
     /// @notice Register a new voter
     /// @param _name Name of the voter
     /// @param _age Age of the voter (must be 18 or older)
@@ -88,11 +98,9 @@ interface IVoterDatabase {
     function deleteVoter() external;
 
     /// @notice Mark a voter as having voted
-    /// @dev Should be called by the election contract
     function markVoted() external;
 
     /// @notice Admin function to add a voter directly
-    /// @dev Only owner can call this function
     /// @param _voterAddress Address of the voter to add
     /// @param _name Name of the voter
     /// @param _age Age of the voter
@@ -108,8 +116,7 @@ interface IVoterDatabase {
         bool _hasVoted
     ) external;
 
-    /// @notice Admin function to update voter details (can update even if voter has voted)
-    /// @dev Only owner can call this function
+    /// @notice Admin function to update voter details
     /// @param _voterAddress Address of the voter to update
     /// @param _name Updated name
     /// @param _age Updated age
@@ -126,12 +133,10 @@ interface IVoterDatabase {
     ) external;
 
     /// @notice Admin function to remove a voter
-    /// @dev Only owner can call this function
     /// @param _voterAddress Address of the voter to remove
     function adminRemoveVoter(address _voterAddress) external;
 
     /// @notice Admin function to toggle a voter's voting status
-    /// @dev Only owner can call this function
     /// @param _voterAddress Address of the voter
     /// @param _hasVoted New voting status to set
     function adminSetVotingStatus(
@@ -140,7 +145,6 @@ interface IVoterDatabase {
     ) external;
 
     /// @notice Import a specific voter from another VoterDatabase contract
-    /// @dev Only owner can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     /// @param _voterAddress The address of the voter to import
     function adminImportVoter(
@@ -149,7 +153,6 @@ interface IVoterDatabase {
     ) external;
 
     /// @notice Batch import selected voters from another VoterDatabase contract
-    /// @dev Only owner can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     /// @param _voterAddresses Array of voter addresses to import
     function adminBatchImportVoters(
@@ -158,11 +161,10 @@ interface IVoterDatabase {
     ) external;
 
     /// @notice Import all voters from another VoterDatabase contract
-    /// @dev Only owner can call this function
     /// @param _sourceContract The address of the source VoterDatabase contract
     function adminImportAllVoters(address _sourceContract) external;
 
-    /// @notice Get details of a specific voter (only callable by owner for privacy reasons)
+    /// @notice Get details of a specific voter
     /// @param _voterAddress Address of the voter
     /// @return name The voter's name
     /// @return age The voter's age
@@ -189,6 +191,35 @@ interface IVoterDatabase {
     /// @notice Get addresses of all registered voters
     /// @return Array of addresses of all registered voters
     function adminGetAllVoters() external view returns (address[] memory);
+
+    /// @notice Add a new admin to the system
+    /// @param _adminAddress Address to be added as admin
+    function addAdmin(address _adminAddress) external;
+
+    /// @notice Remove an admin from the system
+    /// @param _adminAddress Address to be removed from admin role
+    function removeAdmin(address _adminAddress) external;
+
+    /// @notice Check if an address is an admin
+    /// @param _address Address to check
+    /// @return True if the address is an admin, false otherwise
+    function isAdmin(address _address) external view returns (bool);
+
+    /// @notice Get the total number of admins (excluding owner)
+    /// @return The count of admins
+    function getAdminCount() external view returns (uint256);
+
+    /// @notice Get addresses of all admins (excluding owner)
+    /// @return Array of admin addresses
+    function getAllAdmins() external view returns (address[] memory);
+
+    /// @notice Get the contract owner address
+    /// @return The address of the contract owner
+    function getOwner() external view returns (address);
+
+    /// @notice Check if the caller is an admin
+    /// @return True if the caller is an admin, false otherwise
+    function amIAdmin() external view returns (bool);
 
     /// @notice Get your own voter details
     /// @return name Your name
