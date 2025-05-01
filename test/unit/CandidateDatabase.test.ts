@@ -3,6 +3,7 @@ import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
+import { GenderEnum } from "../../types";
 
 describe("CandidateDatabase Unit Tests", function () {
   before(function () {
@@ -39,7 +40,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.addCandidate([
             "Alice",
             BigInt(17),
-            0, // Male gender
+            GenderEnum.MALE,
             "alice@example.com",
             "BSc",
             "My Manifesto",
@@ -54,7 +55,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
           BigInt(20),
-          1, // Female gender
+          GenderEnum.FEMALE,
           "alice@example.com",
           "BSc",
           "My Manifesto",
@@ -64,7 +65,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.addCandidate([
             "Alice",
             BigInt(20),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "alice@example.com",
             "BSc",
             "My Manifesto",
@@ -79,7 +80,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
           BigInt(20),
-          1, // Female gender
+          GenderEnum.FEMALE,
           "alice@example.com",
           "BSc",
           "My Manifesto",
@@ -101,7 +102,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
           BigInt(25),
-          1, // Female gender
+          GenderEnum.FEMALE,
           "alice@example.com",
           "PhD in Computer Science",
           "Making technology accessible for all",
@@ -111,7 +112,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const details = await candidateDatabase.read.getMyCandidateDetails();
         assert.equal(details[0], "Alice");
         assert.equal(details[1], 25n);
-        assert.equal(Number(details[2]), 1); // Female gender
+        assert.equal(Number(details[2]), GenderEnum.FEMALE);
         assert.equal(details[3], "alice@example.com");
         assert.equal(details[4], "PhD in Computer Science");
         assert.equal(details[5], "Making technology accessible for all");
@@ -127,7 +128,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.updateCandidate([
             "Bob",
             BigInt(30),
-            0, // Male gender
+            GenderEnum.MALE,
             "bob@example.com",
             "MSc",
             "New Ideas",
@@ -142,7 +143,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.addCandidate([
           "Charlie",
           BigInt(22),
-          0, // Male gender
+          GenderEnum.MALE,
           "charlie@example.com",
           "BA",
           "Original Manifesto",
@@ -152,7 +153,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash2 = await candidateDatabase.write.updateCandidate([
           "Charlie Updated",
           BigInt(23),
-          0, // Male gender
+          GenderEnum.MALE,
           "charlie.updated@example.com",
           "BA, MBA",
           "Updated Manifesto",
@@ -174,7 +175,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.addCandidate([
           "David",
           BigInt(40),
-          0, // Male gender
+          GenderEnum.MALE,
           "david@example.com",
           "PhD",
           "Original Platform",
@@ -184,7 +185,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash2 = await candidateDatabase.write.updateCandidate([
           "David Smith",
           BigInt(41),
-          0, // Male gender
+          GenderEnum.MALE,
           "david.smith@example.com",
           "PhD, Post-Doc",
           "Updated Platform",
@@ -194,7 +195,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const details = await candidateDatabase.read.getMyCandidateDetails();
         assert.equal(details[0], "David Smith");
         assert.equal(details[1], 41n);
-        assert.equal(Number(details[2]), 0); // Male gender
+        assert.equal(Number(details[2]), GenderEnum.MALE);
         assert.equal(details[3], "david.smith@example.com");
         assert.equal(details[4], "PhD, Post-Doc");
         assert.equal(details[5], "Updated Platform");
@@ -206,7 +207,14 @@ describe("CandidateDatabase Unit Tests", function () {
         const { candidateDatabase, otherAccount, publicClient } =
           await loadFixture(deployCandidateDatabaseFixture);
         const hash = await candidateDatabase.write.addCandidate(
-          ["Emily", BigInt(30), 1, "emily@example.com", "BSc", "My Manifesto"], // Female gender
+          [
+            "Emily",
+            BigInt(30),
+            GenderEnum.FEMALE,
+            "emily@example.com",
+            "BSc",
+            "My Manifesto",
+          ],
           { account: otherAccount.account }
         );
         await publicClient.waitForTransactionReceipt({ hash });
@@ -239,11 +247,11 @@ describe("CandidateDatabase Unit Tests", function () {
           [
             "Frank",
             BigInt(25),
-            0,
+            GenderEnum.MALE,
             "frank@example.com",
             "MSc",
             "Some Manifesto",
-          ], // Male gender
+          ],
           { account: otherAccount.account }
         );
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -265,7 +273,14 @@ describe("CandidateDatabase Unit Tests", function () {
         const { candidateDatabase, otherAccount, publicClient } =
           await loadFixture(deployCandidateDatabaseFixture);
         const hash1 = await candidateDatabase.write.addCandidate(
-          ["Grace", BigInt(35), 1, "grace@example.com", "BA", "My Platform"], // Female gender
+          [
+            "Grace",
+            BigInt(35),
+            GenderEnum.FEMALE,
+            "grace@example.com",
+            "BA",
+            "My Platform",
+          ],
           { account: otherAccount.account }
         );
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -302,7 +317,7 @@ describe("CandidateDatabase Unit Tests", function () {
               otherAccount.account.address,
               "Henry",
               BigInt(25),
-              0, // Male gender
+              GenderEnum.MALE,
               "henry@example.com",
               "BSc",
               "New Ideas",
@@ -321,7 +336,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "0x0000000000000000000000000000000000000000",
             "Invalid",
             BigInt(25),
-            0, // Male gender
+            GenderEnum.MALE,
             "invalid@example.com",
             "BSc",
             "Test",
@@ -336,7 +351,7 @@ describe("CandidateDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Ian",
           BigInt(25),
-          0, // Male gender
+          GenderEnum.MALE,
           "ian@example.com",
           "MSc",
           "Fresh Ideas",
@@ -364,7 +379,7 @@ describe("CandidateDatabase Unit Tests", function () {
               otherAccount.account.address,
               "Jane Updated",
               BigInt(26),
-              1, // Female gender
+              GenderEnum.FEMALE,
               "jane.updated@example.com",
               "PhD",
               "New Platform",
@@ -383,7 +398,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Jane Updated",
             BigInt(26),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "jane.updated@example.com",
             "PhD",
             "New Platform",
@@ -399,7 +414,7 @@ describe("CandidateDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Kevin",
           BigInt(25),
-          0, // Male gender
+          GenderEnum.MALE,
           "kevin@example.com",
           "BSc",
           "Original Ideas",
@@ -411,7 +426,7 @@ describe("CandidateDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Kevin Smith",
           BigInt(26),
-          0, // Male gender
+          GenderEnum.MALE,
           "kevin.smith@example.com",
           "BSc, MBA",
           "Updated Ideas",
@@ -436,7 +451,7 @@ describe("CandidateDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Laura",
           BigInt(30),
-          1, // Female gender
+          GenderEnum.FEMALE,
           "laura@example.com",
           "MSc Economics",
           "Economic Reform",
@@ -448,7 +463,7 @@ describe("CandidateDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Laura Johnson",
           BigInt(31),
-          1, // Female gender
+          GenderEnum.FEMALE,
           "laura.johnson@example.com",
           "MSc Economics, PhD Finance",
           "Economic and Financial Reform",
@@ -462,7 +477,7 @@ describe("CandidateDatabase Unit Tests", function () {
           ]);
         assert.equal(candidateDetails[0], "Laura Johnson");
         assert.equal(candidateDetails[1], 31n);
-        assert.equal(Number(candidateDetails[2]), 1); // Female gender
+        assert.equal(Number(candidateDetails[2]), GenderEnum.FEMALE);
         assert.equal(candidateDetails[3], "laura.johnson@example.com");
         assert.equal(candidateDetails[4], "MSc Economics, PhD Finance");
         assert.equal(candidateDetails[5], "Economic and Financial Reform");
@@ -642,7 +657,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Michael",
             BigInt(38),
-            0, // Male gender
+            GenderEnum.MALE,
             "michael@example.com",
             "PhD Physics",
             "Scientific Advancement",
@@ -654,7 +669,7 @@ describe("CandidateDatabase Unit Tests", function () {
           ]);
           assert.equal(details[0], "Michael");
           assert.equal(details[1], 38n);
-          assert.equal(Number(details[2]), 0); // Male gender
+          assert.equal(Number(details[2]), GenderEnum.MALE);
           assert.equal(details[3], "michael@example.com");
           assert.equal(details[4], "PhD Physics");
           assert.equal(details[5], "Scientific Advancement");
@@ -684,7 +699,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Nora",
             BigInt(30),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "nora@example.com",
             "Law Degree",
             "Justice Reform",
@@ -695,7 +710,7 @@ describe("CandidateDatabase Unit Tests", function () {
             thirdAccount.account.address,
             "Oscar",
             BigInt(35),
-            0, // Male gender
+            GenderEnum.MALE,
             "oscar@example.com",
             "MBA",
             "Business Growth",
@@ -728,7 +743,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Patricia",
             BigInt(30),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "patricia@example.com",
             "BSc",
             "Platform One",
@@ -739,7 +754,7 @@ describe("CandidateDatabase Unit Tests", function () {
             thirdAccount.account.address,
             "Quentin",
             BigInt(35),
-            0, // Male gender
+            GenderEnum.MALE,
             "quentin@example.com",
             "MBA",
             "Platform Two",
@@ -779,7 +794,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash = await candidateDatabase.write.addCandidate([
             "Steven",
             BigInt(42),
-            0, // Male gender
+            GenderEnum.MALE,
             "steven@example.com",
             "JD",
             "Constitutional Reform",
@@ -789,7 +804,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const profile = await candidateDatabase.read.getMyCandidateDetails();
           assert.equal(profile[0], "Steven");
           assert.equal(profile[1], 42n);
-          assert.equal(Number(profile[2]), 0); // Male gender
+          assert.equal(Number(profile[2]), GenderEnum.MALE);
           assert.equal(profile[3], "steven@example.com");
           assert.equal(profile[4], "JD");
           assert.equal(profile[5], "Constitutional Reform");
@@ -813,7 +828,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash = await candidateDatabase.write.addCandidate([
             "Tina",
             BigInt(27),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "tina@example.com",
             "BSc",
             "Environment First",
@@ -844,7 +859,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Uma",
             BigInt(33),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "uma@example.com",
             "PhD",
             "Education First",
@@ -881,7 +896,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Victor",
             BigInt(36),
-            0, // Male gender
+            GenderEnum.MALE,
             "victor@example.com",
             "MBA",
             "Economic Growth",
@@ -892,7 +907,7 @@ describe("CandidateDatabase Unit Tests", function () {
             thirdAccount.account.address,
             "Wendy",
             BigInt(41),
-            1, // Female gender
+            GenderEnum.FEMALE,
             "wendy@example.com",
             "PhD",
             "Research Focus",

@@ -3,6 +3,7 @@ import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
+import { GenderEnum } from "../../types";
 
 describe("VoterDatabase Unit Tests", function () {
   before(function () {
@@ -25,7 +26,12 @@ describe("VoterDatabase Unit Tests", function () {
       it("should revert if under 18", async function () {
         const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
         await expect(
-          voterDatabase.write.addVoter(["Alice", BigInt(17), 0, "Some Address"])
+          voterDatabase.write.addVoter([
+            "Alice",
+            BigInt(17),
+            GenderEnum.MALE,
+            "Some Address",
+          ])
         ).to.be.rejectedWith("VoterDatabase__NotEligible");
       });
 
@@ -36,12 +42,17 @@ describe("VoterDatabase Unit Tests", function () {
         const hash = await voterDatabase.write.addVoter([
           "Alice",
           BigInt(20),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
         await expect(
-          voterDatabase.write.addVoter(["Alice", BigInt(20), 1, "Some Address"])
+          voterDatabase.write.addVoter([
+            "Alice",
+            BigInt(20),
+            GenderEnum.FEMALE,
+            "Some Address",
+          ])
         ).to.be.rejectedWith("VoterDatabase__AlreadyRegistered");
       });
 
@@ -52,7 +63,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash = await voterDatabase.write.addVoter([
           "Alice",
           BigInt(20),
-          0,
+          GenderEnum.MALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
@@ -69,7 +80,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash = await voterDatabase.write.addVoter([
           "Alice",
           BigInt(25),
-          0,
+          GenderEnum.MALE,
           "123 Main St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
@@ -77,7 +88,7 @@ describe("VoterDatabase Unit Tests", function () {
         const details = await voterDatabase.read.getMyDetails();
         assert.equal(details[0], "Alice");
         assert.equal(details[1], 25n);
-        assert.equal(details[2], 0);
+        assert.equal(details[2], GenderEnum.MALE);
         assert.equal(details[3], "123 Main St");
         assert.equal(details[4], false); // hasVoted should be false
       });
@@ -87,7 +98,12 @@ describe("VoterDatabase Unit Tests", function () {
       it("should revert if not registered", async function () {
         const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
         await expect(
-          voterDatabase.write.updateVoter(["Bob", BigInt(30), 1, "New Address"])
+          voterDatabase.write.updateVoter([
+            "Bob",
+            BigInt(30),
+            GenderEnum.FEMALE,
+            "New Address",
+          ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
 
@@ -98,7 +114,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Bob",
           BigInt(30),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -110,7 +126,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.updateVoter([
             "BobUpdated",
             BigInt(31),
-            1,
+            GenderEnum.FEMALE,
             "Updated Address",
           ])
         ).to.be.rejectedWith("VoterDatabase__CannotUpdateAfterVoting");
@@ -123,7 +139,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Charlie",
           BigInt(22),
-          0,
+          GenderEnum.MALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -131,7 +147,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash2 = await voterDatabase.write.updateVoter([
           "Charles",
           BigInt(23),
-          0,
+          GenderEnum.MALE,
           "New Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -148,7 +164,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "David",
           BigInt(40),
-          0,
+          GenderEnum.MALE,
           "Old Street",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -156,7 +172,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash2 = await voterDatabase.write.updateVoter([
           "Dave",
           BigInt(41),
-          1,
+          GenderEnum.FEMALE,
           "New Street",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -164,7 +180,7 @@ describe("VoterDatabase Unit Tests", function () {
         const details = await voterDatabase.read.getMyDetails();
         assert.equal(details[0], "Dave");
         assert.equal(details[1], 41n);
-        assert.equal(details[2], 1);
+        assert.equal(details[2], GenderEnum.FEMALE);
         assert.equal(details[3], "New Street");
         assert.equal(details[4], false); // hasVoted should still be false
       });
@@ -185,7 +201,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Emily",
           BigInt(30),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -205,7 +221,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Frank",
           BigInt(25),
-          0,
+          GenderEnum.MALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -233,7 +249,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Grace",
           BigInt(35),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -253,7 +269,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.addVoter([
           "Helen",
           BigInt(42),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -282,7 +298,7 @@ describe("VoterDatabase Unit Tests", function () {
               otherAccount.account.address,
               "Tom",
               BigInt(25),
-              0,
+              GenderEnum.MALE,
               "Some Address",
               false,
             ],
@@ -298,7 +314,7 @@ describe("VoterDatabase Unit Tests", function () {
             "0x0000000000000000000000000000000000000000",
             "Tom",
             BigInt(25),
-            0,
+            GenderEnum.MALE,
             "Some Address",
             false,
           ])
@@ -312,7 +328,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Tom",
           BigInt(25),
-          0,
+          GenderEnum.MALE,
           "Some Address",
           false,
         ]);
@@ -339,7 +355,7 @@ describe("VoterDatabase Unit Tests", function () {
               otherAccount.account.address,
               "Tom Updated",
               BigInt(26),
-              1,
+              GenderEnum.FEMALE,
               "New Address",
               false,
             ],
@@ -357,7 +373,7 @@ describe("VoterDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Tom Updated",
             BigInt(26),
-            1,
+            GenderEnum.FEMALE,
             "New Address",
             false,
           ])
@@ -372,7 +388,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Tom",
           BigInt(25),
-          0,
+          GenderEnum.MALE,
           "Some Address",
           false,
         ]);
@@ -383,7 +399,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Tom Updated",
           BigInt(26),
-          1,
+          GenderEnum.FEMALE,
           "New Address",
           true,
         ]);
@@ -407,7 +423,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Jerry",
           BigInt(30),
-          0,
+          GenderEnum.MALE,
           "Some Address",
           true,
         ]);
@@ -418,7 +434,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Jerry Updated",
           BigInt(31),
-          1,
+          GenderEnum.FEMALE,
           "New Address",
           true,
         ]);
@@ -430,7 +446,7 @@ describe("VoterDatabase Unit Tests", function () {
         ]);
         assert.equal(voterDetails[0], "Jerry Updated");
         assert.equal(voterDetails[1], 31n);
-        assert.equal(voterDetails[2], 1);
+        assert.equal(voterDetails[2], GenderEnum.FEMALE);
         assert.equal(voterDetails[3], "New Address");
         assert.equal(voterDetails[4], true);
       });
@@ -465,7 +481,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Kate",
           BigInt(33),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
           false,
         ]);
@@ -495,7 +511,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Liam",
           BigInt(27),
-          0,
+          GenderEnum.MALE,
           "Some Address",
           false,
         ]);
@@ -549,7 +565,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Maria",
           BigInt(29),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
           false,
         ]);
@@ -580,7 +596,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
           "Nina",
           BigInt(31),
-          1,
+          GenderEnum.FEMALE,
           "Some Address",
           false,
         ]);
@@ -640,7 +656,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash = await voterDatabase.write.addVoter([
             "Quinn",
             BigInt(38),
-            0,
+            GenderEnum.MALE,
             "456 Oak St",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
@@ -648,7 +664,7 @@ describe("VoterDatabase Unit Tests", function () {
           const details = await voterDatabase.read.getMyDetails();
           assert.equal(details[0], "Quinn");
           assert.equal(details[1], 38n);
-          assert.equal(details[2], 0);
+          assert.equal(details[2], GenderEnum.MALE);
           assert.equal(details[3], "456 Oak St");
           assert.equal(details[4], false);
         });
@@ -670,7 +686,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash = await voterDatabase.write.addVoter([
             "Ryan",
             BigInt(27),
-            0,
+            GenderEnum.MALE,
             "Some Address",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
@@ -697,7 +713,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash = await voterDatabase.write.addVoter([
             "Samantha",
             BigInt(33),
-            1,
+            GenderEnum.FEMALE,
             "Some Address",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
@@ -713,7 +729,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash1 = await voterDatabase.write.addVoter([
             "Tyler",
             BigInt(29),
-            0,
+            GenderEnum.MALE,
             "Some Address",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -767,7 +783,7 @@ describe("VoterDatabase Unit Tests", function () {
             otherAccount.account.address,
             "User One",
             BigInt(30),
-            0,
+            GenderEnum.MALE,
             "Address One",
             false,
           ]);
@@ -777,7 +793,7 @@ describe("VoterDatabase Unit Tests", function () {
             thirdAccount.account.address,
             "User Two",
             BigInt(35),
-            1,
+            GenderEnum.FEMALE,
             "Address Two",
             true,
           ]);
@@ -809,7 +825,7 @@ describe("VoterDatabase Unit Tests", function () {
             otherAccount.account.address,
             "User One",
             BigInt(30),
-            0,
+            GenderEnum.MALE,
             "Address One",
             false,
           ]);
@@ -819,7 +835,7 @@ describe("VoterDatabase Unit Tests", function () {
             thirdAccount.account.address,
             "User Two",
             BigInt(35),
-            1,
+            GenderEnum.FEMALE,
             "Address Two",
             true,
           ]);
@@ -876,7 +892,7 @@ describe("VoterDatabase Unit Tests", function () {
             otherAccount.account.address,
             "Test User",
             BigInt(42),
-            1,
+            GenderEnum.FEMALE,
             "Test Address",
             true,
           ]);
@@ -888,7 +904,7 @@ describe("VoterDatabase Unit Tests", function () {
 
           assert.equal(details[0], "Test User");
           assert.equal(details[1], 42n);
-          assert.equal(details[2], 1);
+          assert.equal(details[2], GenderEnum.FEMALE);
           assert.equal(details[3], "Test Address");
           assert.equal(details[4], true);
         });
