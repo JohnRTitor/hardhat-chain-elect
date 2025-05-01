@@ -21,7 +21,7 @@ interface ICandidateDatabase {
     /// @param candidate The address of the updated candidate
     event CandidateUpdated(address indexed candidate);
 
-    /// @notice Emitted when a candidate is deleted/unregistered by the admin
+    /// @notice Emitted when a candidate is deleted/unregistered
     /// @param candidate The address of the deleted candidate
     event CandidateDeleted(address indexed candidate);
 
@@ -42,6 +42,14 @@ interface ICandidateDatabase {
     /// @param candidate The address of the candidate updated by admin
     /// @param admin The admin who updated the candidate
     event AdminUpdatedCandidate(
+        address indexed candidate,
+        address indexed admin
+    );
+
+    /// @notice Emitted when admin removes a candidate
+    /// @param candidate The address of the candidate removed by admin
+    /// @param admin The admin who removed the candidate
+    event AdminRemovedCandidate(
         address indexed candidate,
         address indexed admin
     );
@@ -92,9 +100,8 @@ interface ICandidateDatabase {
         string memory _manifesto
     ) external;
 
-    /// @notice Delete a candidate's registration (admin only)
-    /// @param _candidateAddress The address of the candidate to remove
-    function deleteCandidate(address _candidateAddress) external;
+    /// @notice Allows a registered candidate to delete their own registration
+    function deleteCandidate() external;
 
     /// @notice Admin function to add a candidate directly
     /// @param _candidateAddress Address of the candidate to add
@@ -135,6 +142,10 @@ interface ICandidateDatabase {
         string memory _qualifications,
         string memory _manifesto
     ) external;
+
+    /// @notice Admin function to remove a candidate
+    /// @param _candidateAddress Address of the candidate to remove
+    function adminRemoveCandidate(address _candidateAddress) external;
 
     /// @notice Import a specific candidate from another CandidateDatabase contract
     /// @param _sourceContract The address of the source CandidateDatabase contract
@@ -239,7 +250,7 @@ interface ICandidateDatabase {
         );
 
     /// @notice Get your own registration status
-    /// @return isRegistered Whether you are registered for a election
+    /// @return isRegistered Whether you are registered as a candidate
     function getMyRegistrationStatus()
         external
         view
@@ -247,7 +258,7 @@ interface ICandidateDatabase {
 
     /// @notice Get a candidate's registration status
     /// @param _candidateAddress Address of the candidate
-    /// @return isRegistered Whether the candidate is registered for a election
+    /// @return isRegistered Whether the candidate is registered
     function getCandidateRegistrationStatus(
         address _candidateAddress
     ) external view returns (bool isRegistered);

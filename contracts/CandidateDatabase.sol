@@ -7,13 +7,14 @@ import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
  * @title CandidateDatabase Contract
  * @author Masum Reza
  * @notice This contract allows candidates to self-register and update their profiles.
- * @dev Only the admin (owner) can delete/unregister candidates. Anyone can view public candidate data.
+ * @dev functions specifically prepended with admin may only be called by the contract owner or admins
+ * @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
  */
 
 /// @notice Thrown when a candidate under the age of 18 tries to register
 error CandidateDatabase__NotEligible();
 
-/// @notice Thrown when a non-owner attempts to perform an admin-only action
+/// @notice Thrown when a non-owner attempts to perform an owner-only action
 error CandidateDatabase__NotOwner();
 
 /// @notice Thrown when a candidate attempts to register again after already being registered
@@ -38,7 +39,7 @@ error CandidateDatabase__AlreadyAdmin();
 error CandidateDatabase__AdminNotFound();
 
 contract CandidateDatabase is ICandidateDatabase {
-    /// @notice Candidate struct holding personal information and registration status
+    /// @notice Stores details for a single candidate
     struct Candidate {
         string name;
         uint256 age;
@@ -59,16 +60,16 @@ contract CandidateDatabase is ICandidateDatabase {
     mapping(address => bool) private s_admins;
     address[] private s_adminAddresses;
 
-    /// @notice Modifier to restrict access to contract owner (admin)
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert CandidateDatabase__NotOwner();
-        _;
-    }
-
-    /// @notice Modifier to restrict access to registered candidates only
+    /// @notice Functions with this modifier can only be called by registered candidates
     modifier onlyRegistered() {
         if (!s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__NotRegistered();
+        _;
+    }
+
+    /// @notice Restricts function access to the owner/election manager
+    modifier onlyOwner() {
+        if (msg.sender != i_owner) revert CandidateDatabase__NotOwner();
         _;
     }
 
@@ -79,19 +80,19 @@ contract CandidateDatabase is ICandidateDatabase {
         _;
     }
 
-    /// @notice Contract constructor sets the deployer as the owner
+    /// @notice Contract constructor, sets the deployer as the owner
     constructor() {
         i_owner = msg.sender;
     }
 
-    /// @notice Register yourself as a candidate
-    /// @param _name Candidate's full name
-    /// @param _age Candidate's age (must be 18+)
-    /// @param _gender Candidate's gender (0 for Male, 1 for Female)
-    /// @param _presentAddress Candidate's current address
-    /// @param _email Candidate's email address
-    /// @param _qualifications Candidate's educational qualifications
-    /// @param _manifesto Candidate's election manifesto or platform
+    /// @notice Register a new candidate
+    /// @param _name Name of the candidate
+    /// @param _age Age of the candidate (must be 18 or older)
+    /// @param _gender Gender of the candidate (0 for Male, 1 for Female)
+    /// @param _presentAddress Present address of the candidate
+    /// @param _email Email address of the candidate
+    /// @param _qualifications Educational qualifications of the candidate
+    /// @param _manifesto Election manifesto of the candidate
     function addCandidate(
         string memory _name,
         uint256 _age,
@@ -100,7 +101,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) public override {
+    ) external override {
         if (_age < 18) revert CandidateDatabase__NotEligible();
         if (s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
@@ -116,16 +117,17 @@ contract CandidateDatabase is ICandidateDatabase {
             registrationTimestamp: block.timestamp,
             isRegistered: true
         });
+
         s_candidateAddresses.push(msg.sender);
         emit CandidateRegistered(msg.sender);
     }
 
-    /// @notice Update your candidate profile
+    /// @notice Update candidate information
     /// @param _name Updated name
     /// @param _age Updated age
     /// @param _gender Updated gender
-    /// @param _presentAddress Updated present address
-    /// @param _email Updated email address
+    /// @param _presentAddress Updated address
+    /// @param _email Updated email
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
     function updateCandidate(
@@ -136,31 +138,29 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) public override onlyRegistered {
-        s_candidates[msg.sender].name = _name;
-        s_candidates[msg.sender].age = _age;
-        s_candidates[msg.sender].gender = _gender;
-        s_candidates[msg.sender].presentAddress = _presentAddress;
-        s_candidates[msg.sender].email = _email;
-        s_candidates[msg.sender].qualifications = _qualifications;
-        s_candidates[msg.sender].manifesto = _manifesto;
+    ) external override onlyRegistered {
+        Candidate storage candidate = s_candidates[msg.sender];
+        candidate.name = _name;
+        candidate.age = _age;
+        candidate.gender = _gender;
+        candidate.presentAddress = _presentAddress;
+        candidate.email = _email;
+        candidate.qualifications = _qualifications;
+        candidate.manifesto = _manifesto;
 
         emit CandidateUpdated(msg.sender);
     }
 
-    /// @notice Delete a candidate's registration (admin only)
-    /// @param _candidateAddress The address of the candidate to remove
-    function deleteCandidate(
-        address _candidateAddress
-    ) public override onlyAdmin {
-        if (!s_candidates[_candidateAddress].isRegistered) {
-            revert CandidateDatabase__NotRegistered();
-        }
+    /// @notice Allows a registered candidate to delete their own registration
+    function deleteCandidate() external override onlyRegistered {
+        address candidateAddress = msg.sender;
 
-        delete s_candidates[_candidateAddress];
+        // remove candidate from mapping
+        delete s_candidates[candidateAddress];
 
+        // swap candidate with last element and pop
         for (uint256 i = 0; i < s_candidateAddresses.length; i++) {
-            if (s_candidateAddresses[i] == _candidateAddress) {
+            if (s_candidateAddresses[i] == candidateAddress) {
                 s_candidateAddresses[i] = s_candidateAddresses[
                     s_candidateAddresses.length - 1
                 ];
@@ -169,7 +169,7 @@ contract CandidateDatabase is ICandidateDatabase {
             }
         }
 
-        emit CandidateDeleted(_candidateAddress);
+        emit CandidateDeleted(candidateAddress);
     }
 
     /// @notice Admin function to add a candidate directly
@@ -195,8 +195,6 @@ contract CandidateDatabase is ICandidateDatabase {
         if (_candidateAddress == address(0))
             revert CandidateDatabase__InvalidAddress();
         if (_age < 18) revert CandidateDatabase__NotEligible();
-
-        // Check if already registered
         if (s_candidates[_candidateAddress].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
 
@@ -213,7 +211,6 @@ contract CandidateDatabase is ICandidateDatabase {
         });
 
         s_candidateAddresses.push(_candidateAddress);
-
         emit AdminAddedCandidate(_candidateAddress, msg.sender);
     }
 
@@ -252,6 +249,33 @@ contract CandidateDatabase is ICandidateDatabase {
         candidate.manifesto = _manifesto;
 
         emit AdminUpdatedCandidate(_candidateAddress, msg.sender);
+    }
+
+    /// @notice Admin function to remove a candidate
+    /// @dev Only owner/admins can call this function
+    /// @param _candidateAddress Address of the candidate to remove
+    function adminRemoveCandidate(
+        address _candidateAddress
+    ) external override onlyAdmin {
+        if (!s_candidates[_candidateAddress].isRegistered) {
+            revert CandidateDatabase__NotRegistered();
+        }
+
+        // Remove candidate from mapping
+        delete s_candidates[_candidateAddress];
+
+        // Remove from the address array using swap and pop
+        for (uint256 i = 0; i < s_candidateAddresses.length; i++) {
+            if (s_candidateAddresses[i] == _candidateAddress) {
+                s_candidateAddresses[i] = s_candidateAddresses[
+                    s_candidateAddresses.length - 1
+                ];
+                s_candidateAddresses.pop();
+                break;
+            }
+        }
+
+        emit AdminRemovedCandidate(_candidateAddress, msg.sender);
     }
 
     /// @notice Import a specific candidate from another CandidateDatabase contract
@@ -485,15 +509,15 @@ contract CandidateDatabase is ICandidateDatabase {
         return isAdmin(msg.sender);
     }
 
-    /// @notice Get full details of a specific candidate
+    /// @notice Get details of a specific candidate (publicly accessible)
     /// @param _candidateAddress Address of the candidate
-    /// @return name The name of the candidate
-    /// @return age The age of the candidate
-    /// @return gender The gender of the candidate
-    /// @return presentAddress The present address of the candidate
-    /// @return email The email address of the candidate
-    /// @return qualifications The qualifications of the candidate
-    /// @return manifesto The election manifesto of the candidate
+    /// @return name The candidate's name
+    /// @return age The candidate's age
+    /// @return gender The candidate's gender
+    /// @return presentAddress The candidate's address
+    /// @return email The candidate's email
+    /// @return qualifications The candidate's qualifications
+    /// @return manifesto The candidate's manifesto
     /// @return registrationTimestamp When the candidate registered
     function getCandidateDetails(
         address _candidateAddress
@@ -528,7 +552,7 @@ contract CandidateDatabase is ICandidateDatabase {
         );
     }
 
-    /// @notice Get the list of all registered candidate addresses
+    /// @notice Get the list of all registered candidate addresses (publicly accessible)
     /// @return Array of candidate wallet addresses
     function getAllCandidates()
         public
@@ -539,14 +563,14 @@ contract CandidateDatabase is ICandidateDatabase {
         return s_candidateAddresses;
     }
 
-    /// @notice Get your full candidate details
+    /// @notice Get your own candidate details
     /// @return name Your name
     /// @return age Your age
     /// @return gender Your gender
     /// @return presentAddress Your present address
     /// @return email Your email
     /// @return qualifications Your qualifications
-    /// @return manifesto Your election manifesto
+    /// @return manifesto Your manifesto
     /// @return registrationTimestamp When you registered
     function getMyCandidateDetails()
         public
@@ -578,7 +602,7 @@ contract CandidateDatabase is ICandidateDatabase {
     }
 
     /// @notice Get your own registration status
-    /// @return isRegistered Whether you are registered for a election
+    /// @return isRegistered Whether you are registered as a candidate
     function getMyRegistrationStatus()
         public
         view
@@ -590,7 +614,7 @@ contract CandidateDatabase is ICandidateDatabase {
 
     /// @notice Get a candidate's registration status
     /// @param _candidateAddress Address of the candidate
-    /// @return isRegistered Whether the candidate is registered for a election
+    /// @return isRegistered Whether the candidate is registered
     function getCandidateRegistrationStatus(
         address _candidateAddress
     ) public view override returns (bool isRegistered) {
