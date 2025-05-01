@@ -2,19 +2,52 @@
 pragma solidity ^0.8.8;
 
 /**
- * @title ElectionDatabase
- * @notice Handles creation, management, and voting of elections using external voter and candidate databases.
+ * @title ElectionDatabase Contract
+ * @author Masum Reza
+ * @notice Handles creation, management, and voting of elections using external voter and candidate databases
+ * @dev Functions specifically prepended with admin may only be called by the contract owner or admins
+ * @dev Other functions are accessible to all users, except otherwise specified by modifiers
  */
 
-import {IVoterDatabase} from "contracts/interfaces/IVoterDatabase.sol";
-import {ICandidateDatabase} from "contracts/interfaces/ICandidateDatabase.sol";
+import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
+import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
 
+/// @notice Thrown when a non-owner attempts to perform an owner-only action
 error ElectionDatabase__NotOwner();
-error ElectionDatabase__NotRegisteredVoter();
-error ElectionDatabase__AlreadyVoted();
-error ElectionDatabase__ElectionNotFound();
+
+/// @notice Thrown when a non-admin tries to access admin functionality
+error ElectionDatabase__NotAdmin();
+
+/// @notice Thrown when a voter is not registered in the voter database
+error ElectionDatabase__VoterNotRegistered();
+
+/// @notice Thrown when a voter has already voted in the election
+error ElectionDatabase__VoterAlreadyVoted();
+
+/// @notice Thrown when a candidate is not registered in the candidate database
 error ElectionDatabase__CandidateNotRegistered();
-error ElectionDatabase__VotingClosed();
+
+/// @notice Thrown when a candidate is already registered in the election
+error ElectionDatabase__CandidateAlreadyEnrolled();
+
+/// @notice Thrown when trying to add an address that's already an admin
+error ElectionDatabase__AlreadyAdmin();
+
+/// @notice Thrown when trying to remove an address that's not an admin
+error ElectionDatabase__AdminNotFound();
+
+/// @notice Thrown when a restricted action is attempted during an active election
+/// @notice like enrolling/withdrawing a candidate
+error ElectionDatabase__ElectionActive();
+
+/// @notice Thrown when an election is not currently accepting votes
+error ElectionDatabase__ElectionClosed();
+
+/// @notice Thrown when the requested election does not exist
+error ElectionDatabase__ElectionNotFound();
+
+/// @notice Thrown when an invalid address (0x0) is provided
+error ElectionDatabase__InvalidAddress();
 
 contract ElectionDatabase {
     struct Election {
@@ -26,13 +59,14 @@ contract ElectionDatabase {
         mapping(address => uint256) votesPerCandidate;
         // voter -> who they voted for
         mapping(address => address) voterToChosenCandidate;
-        // voter -> whether they have voted
-        mapping(address => bool) voterHasVoted;
+        // voter -> timestamp when they voted in this specific election (0 if not voted)
+        mapping(address => uint256) voterToVoteTimestamp;
         // flag to determine whether an election is valid/registered
         bool isRegistered;
         // used to track whether the election is active or not
         bool isActive;
         uint256 totalVotes;
+        uint256 createdTimestamp;
     }
 
     address private immutable i_owner;
@@ -41,12 +75,58 @@ contract ElectionDatabase {
 
     uint256 private s_electionCounter;
     mapping(uint256 => Election) private s_elections;
+    uint256[] private s_electionIds;
+
+    // Admin system
+    mapping(address => bool) private s_admins;
+    address[] private s_adminAddresses;
 
     /// @notice Emitted when a new election is created
-    event ElectionCreated(uint256 indexed electionId, string name);
+    event ElectionCreated(
+        uint256 indexed electionId,
+        string name,
+        address indexed creator
+    );
+
+    /// @notice Emitted when an election's details are updated
+    event ElectionUpdated(
+        uint256 indexed electionId,
+        string name,
+        address indexed updater
+    );
+
+    /// @notice Emitted when an election is deleted
+    event ElectionDeleted(
+        uint256 indexed electionId,
+        string name,
+        address indexed remover
+    );
 
     /// @notice Emitted when a candidate is added to an election
-    event CandidateAdded(uint256 indexed electionId, address indexed candidate);
+    event AdminEnrolledCandidate(
+        uint256 indexed electionId,
+        address indexed candidate,
+        address indexed adder
+    );
+
+    /// @notice Emitted when a candidate is removed from an election
+    event AdminRemovedCandidate(
+        uint256 indexed electionId,
+        address indexed candidate,
+        address indexed remover
+    );
+
+    /// @notice Emitted when a candidate enrolls themselves in an election
+    event CandidateEnrolled(
+        uint256 indexed electionId,
+        address indexed candidate
+    );
+
+    /// @notice Emitted when a candidate withdraws themselves from an election
+    event CandidateWithdrawn(
+        uint256 indexed electionId,
+        address indexed candidate
+    );
 
     /// @notice Emitted when a voter votes for a candidate
     event VoterVoted(
@@ -56,13 +136,25 @@ contract ElectionDatabase {
     );
 
     /// @notice Emitted when an election is opened for voting
-    event ElectionOpened(uint256 indexed electionId);
+    event ElectionOpened(uint256 indexed electionId, address indexed admin);
 
     /// @notice Emitted when an election is closed
-    event ElectionClosed(uint256 indexed electionId);
+    event ElectionClosed(uint256 indexed electionId, address indexed admin);
+
+    /// @notice Emitted when an admin is added
+    event AdminAdded(address indexed admin, address indexed owner);
+
+    /// @notice Emitted when an admin is removed
+    event AdminRemoved(address indexed admin, address indexed owner);
 
     modifier onlyOwner() {
         if (msg.sender != i_owner) revert ElectionDatabase__NotOwner();
+        _;
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != i_owner && !s_admins[msg.sender])
+            revert ElectionDatabase__NotAdmin();
         _;
     }
 
@@ -72,38 +164,39 @@ contract ElectionDatabase {
         _;
     }
 
+    modifier onlyOpenElection(uint256 _electionId) {
+        if (!s_elections[_electionId].isActive)
+            revert ElectionDatabase__ElectionClosed();
+        _;
+    }
+
+    modifier onlyClosedElection(uint256 _electionId) {
+        if (s_elections[_electionId].isActive)
+            revert ElectionDatabase__ElectionActive();
+        _;
+    }
+
     modifier onlyRegisteredVoter() {
         if (!s_voterDB.getMyRegistrationStatus()) {
-            revert ElectionDatabase__NotRegisteredVoter();
+            revert ElectionDatabase__VoterNotRegistered();
         }
         _;
     }
 
-    modifier onlyRegisteredCandidate(uint256 _electionId, address _candidate) {
+    modifier onlyRegisteredCandidate(address _candidate) {
+        // check if the candidate is registered in the CandidateDatabase
         if (!s_candidateDB.getCandidateRegistrationStatus(_candidate)) {
             revert ElectionDatabase__CandidateNotRegistered();
         }
-
-        Election storage election = s_elections[_electionId];
-        bool validCandidate = false;
-        for (uint256 i = 0; i < election.candidates.length; i++) {
-            if (election.candidates[i] == _candidate) {
-                validCandidate = true;
-                break;
-            }
-        }
-        if (!validCandidate) revert ElectionDatabase__CandidateNotRegistered();
-        _;
-    }
-
-    modifier onlyActiveElection(Election storage _election) {
-        if (!_election.isActive) revert ElectionDatabase__VotingClosed();
         _;
     }
 
     /// @param _voterDBAddress Address of the VoterDatabase contract
     /// @param _candidateDBAddress Address of the CandidateDatabase contract
     constructor(address _voterDBAddress, address _candidateDBAddress) {
+        if (_voterDBAddress == address(0) || _candidateDBAddress == address(0))
+            revert ElectionDatabase__InvalidAddress();
+
         i_owner = msg.sender;
         s_voterDB = IVoterDatabase(_voterDBAddress);
         s_candidateDB = ICandidateDatabase(_candidateDBAddress);
@@ -111,10 +204,13 @@ contract ElectionDatabase {
     }
 
     /// @notice Creates a new election with given name and description
+    /// @param _name Name of the election
+    /// @param _description Description of the election
+    /// @return The ID of the newly created election
     function createElection(
         string memory _name,
         string memory _description
-    ) external onlyOwner {
+    ) external onlyAdmin returns (uint256) {
         uint256 electionId = s_electionCounter;
 
         Election storage newElection = s_elections[electionId];
@@ -123,76 +219,263 @@ contract ElectionDatabase {
         newElection.isActive = false;
         newElection.isRegistered = true;
         newElection.totalVotes = 0;
+        newElection.createdTimestamp = block.timestamp;
 
+        s_electionIds.push(electionId);
         s_electionCounter++;
-        emit ElectionCreated(electionId, _name);
+
+        emit ElectionCreated(electionId, _name, msg.sender);
+        return electionId;
     }
 
-    /// @notice Adds a candidate to a registered election
-    /// @dev Only callable by contract owner
-    /// @param _electionId ID of the election
-    /// @param _candidate Address of the candidate to add
-    // TODO: decide if this needs to be a onlyOwner function
-    function addCandidate(
+    /// @notice Updates an existing election's details
+    /// @param _electionId ID of the election to update
+    /// @param _name New name for the election
+    /// @param _description New description for the election
+    function updateElection(
         uint256 _electionId,
-        address _candidate
-    ) external onlyOwner onlyRegisteredElection(_electionId) {
-        if (!s_candidateDB.getCandidateRegistrationStatus(_candidate)) {
+        string memory _name,
+        string memory _description
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+
+        election.name = _name;
+        election.description = _description;
+
+        emit ElectionUpdated(_electionId, _name, msg.sender);
+    }
+
+    /// @notice Deletes an existing election
+    /// @param _electionId ID of the election to delete
+    function adminDeleteElection(
+        uint256 _electionId
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        // Store the name before marking as not registered
+        string memory electionName = s_elections[_electionId].name;
+
+        // Mark as not registered
+        s_elections[_electionId].isRegistered = false;
+
+        // Remove from electionIds array using swap and pop
+        for (uint256 i = 0; i < s_electionIds.length; i++) {
+            if (s_electionIds[i] == _electionId) {
+                s_electionIds[i] = s_electionIds[s_electionIds.length - 1];
+                s_electionIds.pop();
+                break;
+            }
+        }
+
+        emit ElectionDeleted(_electionId, electionName, msg.sender);
+    }
+
+    /// @notice Allows a candidate to enroll themselves in an election
+    /// @param _electionId ID of the election to enroll in
+    function enrollCandidate(
+        uint256 _electionId
+    )
+        external
+        onlyRegisteredElection(_electionId)
+        onlyClosedElection(_electionId)
+        onlyRegisteredCandidate(msg.sender)
+    {
+        Election storage election = s_elections[_electionId];
+
+        // Check if candidate is already registered in this election
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == msg.sender) {
+                revert ElectionDatabase__CandidateAlreadyEnrolled();
+            }
+        }
+
+        election.candidates.push(msg.sender);
+
+        emit CandidateEnrolled(_electionId, msg.sender);
+    }
+
+    /// @notice Allows a candidate to withdraw themselves from an election
+    /// @param _electionId ID of the election to withdraw from
+    function withdrawCandidate(
+        uint256 _electionId
+    )
+        external
+        onlyRegisteredElection(_electionId)
+        onlyClosedElection(_electionId)
+    {
+        Election storage election = s_elections[_electionId];
+
+        // Find and remove the candidate
+        bool found = false;
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == msg.sender) {
+                // Swap with last element and pop
+                election.candidates[i] = election.candidates[
+                    election.candidates.length - 1
+                ];
+                election.candidates.pop();
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
             revert ElectionDatabase__CandidateNotRegistered();
         }
 
-        Election storage election = s_elections[_electionId];
-        election.candidates.push(_candidate);
-
-        emit CandidateAdded(_electionId, _candidate);
-    }
-
-    /// @notice Toggles the voting status (open/close) of an election
-    /// @param _electionId ID of the election
-    function toggleElectionStatus(
-        uint256 _electionId
-    ) external onlyOwner onlyRegisteredElection(_electionId) {
-        Election storage election = s_elections[_electionId];
-        if (!election.isActive) {
-            election.isActive = true;
-            emit ElectionOpened(_electionId);
-        } else {
-            election.isActive = false;
-            emit ElectionClosed(_electionId);
-        }
+        emit CandidateWithdrawn(_electionId, msg.sender);
     }
 
     /// @notice Allows a registered voter to vote for a candidate in an active election
     /// @param _electionId ID of the election
     /// @param _candidate Address of the candidate to vote for
-    // TODO: markVoted can only be called by owner, investigate that
     function vote(
         uint256 _electionId,
         address _candidate
     )
         external
-        onlyActiveElection(s_elections[_electionId])
-        onlyRegisteredCandidate(_electionId, _candidate)
+        onlyRegisteredElection(_electionId)
+        onlyOpenElection(_electionId)
         onlyRegisteredVoter
     {
-        if (!s_voterDB.getMyRegistrationStatus())
-            revert ElectionDatabase__NotRegisteredVoter();
-
         Election storage election = s_elections[_electionId];
-        if (election.voterHasVoted[msg.sender])
-            revert ElectionDatabase__AlreadyVoted();
 
+        // Verify candidate is registered in this election
+        bool validCandidate = false;
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == _candidate) {
+                validCandidate = true;
+                break;
+            }
+        }
+        if (!validCandidate) revert ElectionDatabase__CandidateNotRegistered();
+
+        // Check if voter already voted in this specific election
+        if (election.voterToVoteTimestamp[msg.sender] > 0)
+            revert ElectionDatabase__VoterAlreadyVoted();
+
+        // Record the vote
         election.votesPerCandidate[_candidate]++;
         election.voterToChosenCandidate[msg.sender] = _candidate;
-        election.voterHasVoted[msg.sender] = true;
+        election.voterToVoteTimestamp[msg.sender] = block.timestamp;
         election.totalVotes++;
 
-        // this mark voted function marks the voter, we don't want people
-        // to change their identity after they have voted, so mark it on the
-        // VoterDatabase, ideally this should be called once, and not per election
+        // Mark the voter as having voted in the voter database
+        // This could be optional depending on your election system design
         s_voterDB.markVoted();
 
         emit VoterVoted(_electionId, msg.sender, _candidate);
+    }
+
+    /// @notice Adds a candidate to a registered election by an admin
+    /// @param _electionId ID of the election
+    /// @param _candidate Address of the candidate to add
+    function adminEnrollCandidate(
+        uint256 _electionId,
+        address _candidate
+    )
+        external
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        onlyRegisteredCandidate(_candidate)
+    {
+        Election storage election = s_elections[_electionId];
+
+        // Check if candidate is already registered in this election
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == _candidate) {
+                revert ElectionDatabase__CandidateAlreadyEnrolled();
+            }
+        }
+
+        election.candidates.push(_candidate);
+
+        emit AdminEnrolledCandidate(_electionId, _candidate, msg.sender);
+    }
+
+    /// @notice Removes a candidate from an election by an admin
+    /// @param _electionId ID of the election
+    /// @param _candidate Address of the candidate to remove
+    function adminWithdrawCandidate(
+        uint256 _electionId,
+        address _candidate
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+
+        // Find and remove the candidate
+        bool found = false;
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == _candidate) {
+                // Swap with last element and pop
+                election.candidates[i] = election.candidates[
+                    election.candidates.length - 1
+                ];
+                election.candidates.pop();
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            revert ElectionDatabase__CandidateNotRegistered();
+        }
+
+        emit AdminRemovedCandidate(_electionId, _candidate, msg.sender);
+    }
+
+    /// @notice Opens an election for voting
+    /// @param _electionId ID of the election to open
+    function openElection(
+        uint256 _electionId
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+        election.isActive = true;
+        emit ElectionOpened(_electionId, msg.sender);
+    }
+
+    /// @notice Closes an election from voting
+    /// @param _electionId ID of the election to close
+    function closeElection(
+        uint256 _electionId
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+        election.isActive = false;
+        emit ElectionClosed(_electionId, msg.sender);
+    }
+
+    /// @notice Add a new admin to the system
+    /// @dev Only owner can call this function
+    /// @param _adminAddress Address to be added as admin
+    function addAdmin(address _adminAddress) external onlyOwner {
+        if (_adminAddress == address(0))
+            revert ElectionDatabase__InvalidAddress();
+        if (s_admins[_adminAddress]) revert ElectionDatabase__AlreadyAdmin();
+
+        s_admins[_adminAddress] = true;
+        s_adminAddresses.push(_adminAddress);
+
+        emit AdminAdded(_adminAddress, msg.sender);
+    }
+
+    /// @notice Remove an admin from the system
+    /// @dev Only owner can call this function
+    /// @param _adminAddress Address to be removed from admin role
+    function removeAdmin(address _adminAddress) external onlyOwner {
+        if (!s_admins[_adminAddress]) revert ElectionDatabase__AdminNotFound();
+
+        // Remove admin from mapping
+        delete s_admins[_adminAddress];
+
+        // Remove from the admin array using swap and pop
+        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
+            if (s_adminAddresses[i] == _adminAddress) {
+                s_adminAddresses[i] = s_adminAddresses[
+                    s_adminAddresses.length - 1
+                ];
+                s_adminAddresses.pop();
+                break;
+            }
+        }
+
+        emit AdminRemoved(_adminAddress, msg.sender);
     }
 
     /// @notice Returns the vote count of a candidate in a specific election
@@ -221,7 +504,9 @@ contract ElectionDatabase {
             string memory name,
             string memory description,
             bool isActive,
-            address[] memory candidates
+            address[] memory candidates,
+            uint256 totalVotes,
+            uint256 createdTimestamp
         )
     {
         Election storage election = s_elections[_electionId];
@@ -229,13 +514,20 @@ contract ElectionDatabase {
             election.name,
             election.description,
             election.isActive,
-            election.candidates
+            election.candidates,
+            election.totalVotes,
+            election.createdTimestamp
         );
     }
 
     /// @notice Returns the total number of elections created
     function getElectionCount() external view returns (uint256) {
-        return s_electionCounter;
+        return s_electionIds.length;
+    }
+
+    /// @notice Returns all election IDs
+    function getAllElectionIds() external view returns (uint256[] memory) {
+        return s_electionIds;
     }
 
     /// @notice Returns the list of registered candidates for a given election
@@ -275,5 +567,74 @@ contract ElectionDatabase {
         }
 
         return winnerAddress;
+    }
+
+    /// @notice Check if a voter has already voted in a specific election
+    function hasVoted(
+        uint256 _electionId,
+        address _voter
+    ) external view onlyRegisteredElection(_electionId) returns (bool) {
+        return s_elections[_electionId].voterToVoteTimestamp[_voter] > 0;
+    }
+
+    /// @notice Get the timestamp when a voter voted in a specific election
+    function getVoteTimestamp(
+        uint256 _electionId,
+        address _voter
+    ) external view onlyRegisteredElection(_electionId) returns (uint256) {
+        return s_elections[_electionId].voterToVoteTimestamp[_voter];
+    }
+
+    /// @notice Check who a voter voted for in a specific election
+    /// TODO: investigate whether this information is even viewable by s_admins
+    /// This should ideally be only viewable by voters themselves
+    function getVoterChoice(
+        uint256 _electionId,
+        address _voter
+    )
+        external
+        view
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        returns (address)
+    {
+        if (s_elections[_electionId].voterToVoteTimestamp[_voter] == 0) {
+            return address(0); // Voter hasn't voted
+        }
+        return s_elections[_electionId].voterToChosenCandidate[_voter];
+    }
+
+    /// @notice Check if an address is an admin
+    function isAdmin(address _address) public view returns (bool) {
+        return _address == i_owner || s_admins[_address];
+    }
+
+    /// @notice Get the total number of admins (excluding owner)
+    function getAdminCount() public view returns (uint256) {
+        return s_adminAddresses.length;
+    }
+
+    /// @notice Get addresses of all admins (excluding owner)
+    function getAllAdmins() public view returns (address[] memory) {
+        return s_adminAddresses;
+    }
+
+    /// @notice Get the contract owner address
+    function getOwner() public view returns (address) {
+        return i_owner;
+    }
+
+    /// @notice Check if the caller is an admin
+    function amIAdmin() public view returns (bool) {
+        return isAdmin(msg.sender);
+    }
+
+    /// @notice Returns the voting and candidate databases being used
+    function getDatabases()
+        external
+        view
+        returns (address voterDB, address candidateDB)
+    {
+        return (address(s_voterDB), address(s_candidateDB));
     }
 }
