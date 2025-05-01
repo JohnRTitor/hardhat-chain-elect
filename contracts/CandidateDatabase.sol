@@ -37,11 +37,12 @@ error CandidateDatabase__AlreadyAdmin();
 /// @notice Thrown when trying to remove an address that's not an admin
 error CandidateDatabase__AdminNotFound();
 
-contract CandidateDatabase {
+contract CandidateDatabase is ICandidateDatabase {
     /// @notice Candidate struct holding personal information and registration status
     struct Candidate {
         string name;
         uint256 age;
+        Gender gender;
         string email;
         string qualifications;
         string manifesto;
@@ -56,49 +57,6 @@ contract CandidateDatabase {
     // Admin system
     mapping(address => bool) private s_admins;
     address[] private s_adminAddresses;
-
-    /// @notice Emitted when a new candidate is registered
-    /// @param candidate The address of the newly registered candidate
-    event CandidateRegistered(address indexed candidate);
-
-    /// @notice Emitted when a candidate updates their profile
-    /// @param candidate The address of the updated candidate
-    event CandidateUpdated(address indexed candidate);
-
-    /// @notice Emitted when a candidate is deleted/unregistered by the admin
-    /// @param candidate The address of the deleted candidate
-    event CandidateDeleted(address indexed candidate);
-
-    /// @notice Emitted when candidate data is imported
-    /// @param sourceContract Address of the contract data was imported from
-    /// @param candidatesImported Number of candidates successfully imported
-    event CandidatesImported(
-        address indexed sourceContract,
-        uint256 candidatesImported
-    );
-
-    /// @notice Emitted when admin adds a candidate
-    /// @param candidate The address of the candidate added by admin
-    /// @param admin The admin who added the candidate
-    event AdminAddedCandidate(address indexed candidate, address indexed admin);
-
-    /// @notice Emitted when admin updates a candidate
-    /// @param candidate The address of the candidate updated by admin
-    /// @param admin The admin who updated the candidate
-    event AdminUpdatedCandidate(
-        address indexed candidate,
-        address indexed admin
-    );
-
-    /// @notice Emitted when a new admin is added
-    /// @param admin The address of the newly added admin
-    /// @param owner The address that added the admin (owner)
-    event AdminAdded(address indexed admin, address indexed owner);
-
-    /// @notice Emitted when an admin is removed
-    /// @param admin The address of the removed admin
-    /// @param owner The address that removed the admin (owner)
-    event AdminRemoved(address indexed admin, address indexed owner);
 
     /// @notice Modifier to restrict access to contract owner (admin)
     modifier onlyOwner() {
@@ -128,16 +86,18 @@ contract CandidateDatabase {
     /// @notice Register yourself as a candidate
     /// @param _name Candidate's full name
     /// @param _age Candidate's age (must be 18+)
+    /// @param _gender Candidate's gender (0 for Male, 1 for Female)
     /// @param _email Candidate's email address
     /// @param _qualifications Candidate's educational qualifications
     /// @param _manifesto Candidate's election manifesto or platform
     function addCandidate(
         string memory _name,
         uint256 _age,
+        Gender _gender,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) public {
+    ) public override {
         if (_age < 18) revert CandidateDatabase__NotEligible();
         if (s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
@@ -145,6 +105,7 @@ contract CandidateDatabase {
         s_candidates[msg.sender] = Candidate({
             name: _name,
             age: _age,
+            gender: _gender,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
@@ -158,18 +119,21 @@ contract CandidateDatabase {
     /// @notice Update your candidate profile
     /// @param _name Updated name
     /// @param _age Updated age
+    /// @param _gender Updated gender
     /// @param _email Updated email address
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
     function updateCandidate(
         string memory _name,
         uint256 _age,
+        Gender _gender,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) public onlyRegistered {
+    ) public override onlyRegistered {
         s_candidates[msg.sender].name = _name;
         s_candidates[msg.sender].age = _age;
+        s_candidates[msg.sender].gender = _gender;
         s_candidates[msg.sender].email = _email;
         s_candidates[msg.sender].qualifications = _qualifications;
         s_candidates[msg.sender].manifesto = _manifesto;
@@ -179,7 +143,9 @@ contract CandidateDatabase {
 
     /// @notice Delete a candidate's registration (admin only)
     /// @param _candidateAddress The address of the candidate to remove
-    function deleteCandidate(address _candidateAddress) public onlyAdmin {
+    function deleteCandidate(
+        address _candidateAddress
+    ) public override onlyAdmin {
         if (!s_candidates[_candidateAddress].isRegistered) {
             revert CandidateDatabase__NotRegistered();
         }
@@ -204,6 +170,7 @@ contract CandidateDatabase {
     /// @param _candidateAddress Address of the candidate to add
     /// @param _name Name of the candidate
     /// @param _age Age of the candidate
+    /// @param _gender Gender of the candidate
     /// @param _email Email of the candidate
     /// @param _qualifications Qualifications of the candidate
     /// @param _manifesto Manifesto of the candidate
@@ -211,10 +178,11 @@ contract CandidateDatabase {
         address _candidateAddress,
         string memory _name,
         uint256 _age,
+        Gender _gender,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         if (_candidateAddress == address(0))
             revert CandidateDatabase__InvalidAddress();
         if (_age < 18) revert CandidateDatabase__NotEligible();
@@ -226,6 +194,7 @@ contract CandidateDatabase {
         s_candidates[_candidateAddress] = Candidate({
             name: _name,
             age: _age,
+            gender: _gender,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
@@ -243,6 +212,7 @@ contract CandidateDatabase {
     /// @param _candidateAddress Address of the candidate to update
     /// @param _name Updated name
     /// @param _age Updated age
+    /// @param _gender Updated gender
     /// @param _email Updated email
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
@@ -250,10 +220,11 @@ contract CandidateDatabase {
         address _candidateAddress,
         string memory _name,
         uint256 _age,
+        Gender _gender,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         if (!s_candidates[_candidateAddress].isRegistered)
             revert CandidateDatabase__NotRegistered();
 
@@ -262,6 +233,7 @@ contract CandidateDatabase {
         // Update details but preserve timestamp
         candidate.name = _name;
         candidate.age = _age;
+        candidate.gender = _gender;
         candidate.email = _email;
         candidate.qualifications = _qualifications;
         candidate.manifesto = _manifesto;
@@ -276,7 +248,7 @@ contract CandidateDatabase {
     function adminImportCandidate(
         address _sourceContract,
         address _candidateAddress
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         // Skip if candidate is already registered in this contract
         if (s_candidates[_candidateAddress].isRegistered) {
             revert CandidateDatabase__AlreadyRegistered();
@@ -287,6 +259,7 @@ contract CandidateDatabase {
         try source.getCandidateDetails(_candidateAddress) returns (
             string memory name,
             uint256 age,
+            Gender gender,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -296,6 +269,7 @@ contract CandidateDatabase {
             s_candidates[_candidateAddress] = Candidate({
                 name: name,
                 age: age,
+                gender: gender,
                 email: email,
                 qualifications: qualifications,
                 manifesto: manifesto,
@@ -320,7 +294,7 @@ contract CandidateDatabase {
     function adminBatchImportCandidates(
         address _sourceContract,
         address[] calldata _candidateAddresses
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         ICandidateDatabase source = ICandidateDatabase(_sourceContract);
         uint256 importedCount = 0;
 
@@ -335,6 +309,7 @@ contract CandidateDatabase {
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
                 uint256 age,
+                Gender gender,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
@@ -344,6 +319,7 @@ contract CandidateDatabase {
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
                     age: age,
+                    gender: gender,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
@@ -368,7 +344,7 @@ contract CandidateDatabase {
     /// @param _sourceContract The address of the source CandidateDatabase contract
     function adminImportAllCandidates(
         address _sourceContract
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         ICandidateDatabase source = ICandidateDatabase(_sourceContract);
         address[] memory candidates;
 
@@ -392,6 +368,7 @@ contract CandidateDatabase {
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
                 uint256 age,
+                Gender gender,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
@@ -401,6 +378,7 @@ contract CandidateDatabase {
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
                     age: age,
+                    gender: gender,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
@@ -423,7 +401,7 @@ contract CandidateDatabase {
     /// @notice Add a new admin to the system
     /// @dev Only owner can call this function
     /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external onlyOwner {
+    function addAdmin(address _adminAddress) external override onlyOwner {
         if (_adminAddress == address(0))
             revert CandidateDatabase__InvalidAddress();
         if (s_admins[_adminAddress]) revert CandidateDatabase__AlreadyAdmin();
@@ -437,7 +415,7 @@ contract CandidateDatabase {
     /// @notice Remove an admin from the system
     /// @dev Only owner can call this function
     /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external onlyOwner {
+    function removeAdmin(address _adminAddress) external override onlyOwner {
         if (!s_admins[_adminAddress]) revert CandidateDatabase__AdminNotFound();
 
         // Remove admin from mapping
@@ -460,31 +438,31 @@ contract CandidateDatabase {
     /// @notice Check if an address is an admin
     /// @param _address Address to check
     /// @return True if the address is an admin, false otherwise
-    function isAdmin(address _address) public view returns (bool) {
+    function isAdmin(address _address) public view override returns (bool) {
         return _address == i_owner || s_admins[_address];
     }
 
     /// @notice Get the total number of admins (excluding owner)
     /// @return The count of admins
-    function getAdminCount() public view returns (uint256) {
+    function getAdminCount() public view override returns (uint256) {
         return s_adminAddresses.length;
     }
 
     /// @notice Get addresses of all admins (excluding owner)
     /// @return Array of admin addresses
-    function getAllAdmins() public view returns (address[] memory) {
+    function getAllAdmins() public view override returns (address[] memory) {
         return s_adminAddresses;
     }
 
     /// @notice Get the contract owner address
     /// @return The address of the contract owner
-    function getOwner() public view returns (address) {
+    function getOwner() public view override returns (address) {
         return i_owner;
     }
 
     /// @notice Check if the caller is an admin
     /// @return True if the caller is an admin, false otherwise
-    function amIAdmin() public view returns (bool) {
+    function amIAdmin() public view override returns (bool) {
         return isAdmin(msg.sender);
     }
 
@@ -492,6 +470,7 @@ contract CandidateDatabase {
     /// @param _candidateAddress Address of the candidate
     /// @return name The name of the candidate
     /// @return age The age of the candidate
+    /// @return gender The gender of the candidate
     /// @return email The email address of the candidate
     /// @return qualifications The qualifications of the candidate
     /// @return manifesto The election manifesto of the candidate
@@ -501,9 +480,11 @@ contract CandidateDatabase {
     )
         public
         view
+        override
         returns (
             string memory name,
             uint256 age,
+            Gender gender,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -517,6 +498,7 @@ contract CandidateDatabase {
         return (
             candidate.name,
             candidate.age,
+            candidate.gender,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
@@ -526,13 +508,19 @@ contract CandidateDatabase {
 
     /// @notice Get the list of all registered candidate addresses
     /// @return Array of candidate wallet addresses
-    function getAllCandidates() public view returns (address[] memory) {
+    function getAllCandidates()
+        public
+        view
+        override
+        returns (address[] memory)
+    {
         return s_candidateAddresses;
     }
 
     /// @notice Get your full candidate details
     /// @return name Your name
     /// @return age Your age
+    /// @return gender Your gender
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
@@ -540,10 +528,12 @@ contract CandidateDatabase {
     function getMyCandidateDetails()
         public
         view
+        override
         onlyRegistered
         returns (
             string memory name,
             uint256 age,
+            Gender gender,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -554,6 +544,7 @@ contract CandidateDatabase {
         return (
             candidate.name,
             candidate.age,
+            candidate.gender,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
@@ -563,7 +554,12 @@ contract CandidateDatabase {
 
     /// @notice Get your own registration status
     /// @return isRegistered Whether you are registered for a election
-    function getMyRegistrationStatus() public view returns (bool isRegistered) {
+    function getMyRegistrationStatus()
+        public
+        view
+        override
+        returns (bool isRegistered)
+    {
         return s_candidates[msg.sender].isRegistered;
     }
 
@@ -572,13 +568,13 @@ contract CandidateDatabase {
     /// @return isRegistered Whether the candidate is registered for a election
     function getCandidateRegistrationStatus(
         address _candidateAddress
-    ) public view returns (bool isRegistered) {
+    ) public view override returns (bool isRegistered) {
         return s_candidates[_candidateAddress].isRegistered;
     }
 
     /// @notice Get number of registered candidates
     /// @return count The number of registered candidates
-    function getCandidateCount() public view returns (uint256 count) {
+    function getCandidateCount() public view override returns (uint256 count) {
         return s_candidateAddresses.length;
     }
 }
