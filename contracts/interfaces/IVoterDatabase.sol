@@ -72,24 +72,24 @@ interface IVoterDatabase {
 
     /// @notice Register a new voter
     /// @param _name Name of the voter
-    /// @param _age Age of the voter (must be 18 or older)
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
     function addVoter(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress
     ) external;
 
     /// @notice Update voter information (only if registered and not yet voted)
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     function updateVoter(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress
     ) external;
@@ -103,14 +103,14 @@ interface IVoterDatabase {
     /// @notice Admin function to add a voter directly
     /// @param _voterAddress Address of the voter to add
     /// @param _name Name of the voter
-    /// @param _age Age of the voter
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter
     /// @param _presentAddress Present address of the voter
     /// @param _hasVoted Initial voting status of the voter
     function adminAddVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
@@ -119,14 +119,14 @@ interface IVoterDatabase {
     /// @notice Admin function to update voter details
     /// @param _voterAddress Address of the voter to update
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
     /// @param _hasVoted Updated voting status
     function adminUpdateVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
@@ -167,10 +167,11 @@ interface IVoterDatabase {
     /// @notice Get details of a specific voter
     /// @param _voterAddress Address of the voter
     /// @return name The voter's name
-    /// @return age The voter's age
+    /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
     /// @return hasVoted Whether the voter has cast their vote
+    /// @return timeWhenRegisteredEpoch When the voter registered as Unix timestamp
     function adminGetVoterDetails(
         address _voterAddress
     )
@@ -178,10 +179,11 @@ interface IVoterDatabase {
         view
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted
+            bool hasVoted,
+            uint256 timeWhenRegisteredEpoch
         );
 
     /// @notice Get the total number of registered voters
@@ -223,7 +225,7 @@ interface IVoterDatabase {
 
     /// @notice Get your own voter details
     /// @return name Your name
-    /// @return age Your age
+    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
     /// @return hasVoted Whether you have voted
@@ -232,7 +234,7 @@ interface IVoterDatabase {
         view
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             bool hasVoted

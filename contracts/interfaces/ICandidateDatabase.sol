@@ -66,7 +66,7 @@ interface ICandidateDatabase {
 
     /// @notice Register yourself as a candidate
     /// @param _name Candidate's full name
-    /// @param _age Candidate's age (must be 18+)
+    /// @param _dateOfBirthEpoch Candidate's date of birth as Unix timestamp
     /// @param _gender Candidate's gender (0 for Male, 1 for Female)
     /// @param _presentAddress Candidate's present address
     /// @param _email Candidate's email address
@@ -74,7 +74,7 @@ interface ICandidateDatabase {
     /// @param _manifesto Candidate's election manifesto or platform
     function addCandidate(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -84,7 +84,7 @@ interface ICandidateDatabase {
 
     /// @notice Update your candidate profile
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
     /// @param _email Updated email address
@@ -92,7 +92,7 @@ interface ICandidateDatabase {
     /// @param _manifesto Updated manifesto
     function updateCandidate(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -106,7 +106,7 @@ interface ICandidateDatabase {
     /// @notice Admin function to add a candidate directly
     /// @param _candidateAddress Address of the candidate to add
     /// @param _name Name of the candidate
-    /// @param _age Age of the candidate
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the candidate
     /// @param _presentAddress Present address of the candidate
     /// @param _email Email of the candidate
@@ -115,7 +115,7 @@ interface ICandidateDatabase {
     function adminAddCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -126,7 +126,7 @@ interface ICandidateDatabase {
     /// @notice Admin function to update candidate details
     /// @param _candidateAddress Address of the candidate to update
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
     /// @param _email Updated email
@@ -135,7 +135,7 @@ interface ICandidateDatabase {
     function adminUpdateCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -199,13 +199,13 @@ interface ICandidateDatabase {
     /// @notice Get full details of a specific candidate
     /// @param _candidateAddress Address of the candidate
     /// @return name The name of the candidate
-    /// @return age The age of the candidate
+    /// @return dateOfBirthEpoch The date of birth of the candidate as Unix timestamp
     /// @return gender The gender of the candidate
     /// @return presentAddress The present address of the candidate
     /// @return email The email address of the candidate
     /// @return qualifications The qualifications of the candidate
     /// @return manifesto The election manifesto of the candidate
-    /// @return registrationTimestamp When the candidate registered
+    /// @return timeWhenRegisteredEpoch When the candidate registered
     function getCandidateDetails(
         address _candidateAddress
     )
@@ -213,13 +213,13 @@ interface ICandidateDatabase {
         view
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 timeWhenRegisteredEpoch
         );
 
     /// @notice Get the list of all registered candidate addresses
@@ -228,25 +228,25 @@ interface ICandidateDatabase {
 
     /// @notice Get your full candidate details
     /// @return name Your name
-    /// @return age Your age
+    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
-    /// @return registrationTimestamp When you registered
+    /// @return timeWhenRegisteredEpoch When you registered
     function getMyCandidateDetails()
         external
         view
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 timeWhenRegisteredEpoch
         );
 
     /// @notice Get your own registration status

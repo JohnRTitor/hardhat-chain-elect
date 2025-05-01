@@ -4,6 +4,7 @@ import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
 import { GenderEnum } from "../../types";
+import { getDobEpochFromAge } from "../../lib/utils";
 
 describe("CandidateDatabase Unit Tests", function () {
   before(function () {
@@ -39,7 +40,7 @@ describe("CandidateDatabase Unit Tests", function () {
         await expect(
           candidateDatabase.write.addCandidate([
             "Alice",
-            BigInt(17),
+            getDobEpochFromAge(17),
             GenderEnum.MALE,
             "123 Election St",
             "alice@example.com",
@@ -55,7 +56,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
-          BigInt(20),
+          getDobEpochFromAge(20),
           GenderEnum.FEMALE,
           "123 Election St",
           "alice@example.com",
@@ -66,7 +67,7 @@ describe("CandidateDatabase Unit Tests", function () {
         await expect(
           candidateDatabase.write.addCandidate([
             "Alice",
-            BigInt(20),
+            getDobEpochFromAge(20),
             GenderEnum.FEMALE,
             "123 Election St",
             "alice@example.com",
@@ -82,7 +83,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
-          BigInt(20),
+          getDobEpochFromAge(20),
           GenderEnum.FEMALE,
           "123 Election St",
           "alice@example.com",
@@ -105,7 +106,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         const hash = await candidateDatabase.write.addCandidate([
           "Alice",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.FEMALE,
           "456 Tech Ave",
           "alice@example.com",
@@ -116,7 +117,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
         const details = await candidateDatabase.read.getMyCandidateDetails();
         assert.equal(details[0], "Alice");
-        assert.equal(details[1], 25n);
+        assert.equal(details[1], getDobEpochFromAge(25));
         assert.equal(Number(details[2]), GenderEnum.FEMALE);
         assert.equal(details[3], "456 Tech Ave");
         assert.equal(details[4], "alice@example.com");
@@ -133,7 +134,7 @@ describe("CandidateDatabase Unit Tests", function () {
         await expect(
           candidateDatabase.write.updateCandidate([
             "Bob",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.MALE,
             "789 Update Lane",
             "bob@example.com",
@@ -149,7 +150,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         const hash1 = await candidateDatabase.write.addCandidate([
           "Charlie",
-          BigInt(22),
+          getDobEpochFromAge(22),
           GenderEnum.MALE,
           "101 First St",
           "charlie@example.com",
@@ -160,7 +161,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
         const hash2 = await candidateDatabase.write.updateCandidate([
           "Charlie Updated",
-          BigInt(23),
+          getDobEpochFromAge(23),
           GenderEnum.MALE,
           "202 Second St",
           "charlie.updated@example.com",
@@ -183,7 +184,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         const hash1 = await candidateDatabase.write.addCandidate([
           "David",
-          BigInt(40),
+          getDobEpochFromAge(40),
           GenderEnum.MALE,
           "303 Old St",
           "david@example.com",
@@ -194,7 +195,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
         const hash2 = await candidateDatabase.write.updateCandidate([
           "David Smith",
-          BigInt(41),
+          getDobEpochFromAge(41),
           GenderEnum.MALE,
           "404 New St",
           "david.smith@example.com",
@@ -205,7 +206,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
         const details = await candidateDatabase.read.getMyCandidateDetails();
         assert.equal(details[0], "David Smith");
-        assert.equal(details[1], 41n);
+        assert.equal(details[1], getDobEpochFromAge(41));
         assert.equal(Number(details[2]), GenderEnum.MALE);
         assert.equal(details[3], "404 New St");
         assert.equal(details[4], "david.smith@example.com");
@@ -230,7 +231,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.addCandidate(
           [
             "Frank",
-            BigInt(25),
+            getDobEpochFromAge(25),
             GenderEnum.MALE,
             "606 Frank St",
             "frank@example.com",
@@ -260,7 +261,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.addCandidate(
           [
             "Grace",
-            BigInt(35),
+            getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "707 Grace Blvd",
             "grace@example.com",
@@ -302,7 +303,7 @@ describe("CandidateDatabase Unit Tests", function () {
             [
               otherAccount.account.address,
               "Henry",
-              BigInt(25),
+              getDobEpochFromAge(25),
               GenderEnum.MALE,
               "808 Admin St",
               "henry@example.com",
@@ -322,7 +323,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.adminAddCandidate([
             "0x0000000000000000000000000000000000000000",
             "Invalid",
-            BigInt(25),
+            getDobEpochFromAge(25),
             GenderEnum.MALE,
             "000 Zero Ave",
             "invalid@example.com",
@@ -338,7 +339,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash = await candidateDatabase.write.adminAddCandidate([
           otherAccount.account.address,
           "Ian",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "909 Ian Place",
           "ian@example.com",
@@ -367,7 +368,7 @@ describe("CandidateDatabase Unit Tests", function () {
             [
               otherAccount.account.address,
               "Jane Updated",
-              BigInt(26),
+              getDobEpochFromAge(26),
               GenderEnum.FEMALE,
               "123 Updated St",
               "jane.updated@example.com",
@@ -387,7 +388,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.adminUpdateCandidate([
             otherAccount.account.address,
             "Jane Updated",
-            BigInt(26),
+            getDobEpochFromAge(26),
             GenderEnum.FEMALE,
             "123 Updated St",
             "jane.updated@example.com",
@@ -404,7 +405,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.adminAddCandidate([
           otherAccount.account.address,
           "Kevin",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "222 Kevin Dr",
           "kevin@example.com",
@@ -417,7 +418,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash2 = await candidateDatabase.write.adminUpdateCandidate([
           otherAccount.account.address,
           "Kevin Smith",
-          BigInt(26),
+          getDobEpochFromAge(26),
           GenderEnum.MALE,
           "333 Kevin Smith Way",
           "kevin.smith@example.com",
@@ -443,7 +444,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.adminAddCandidate([
           otherAccount.account.address,
           "Laura",
-          BigInt(30),
+          getDobEpochFromAge(30),
           GenderEnum.FEMALE,
           "444 Laura Lane",
           "laura@example.com",
@@ -456,7 +457,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash2 = await candidateDatabase.write.adminUpdateCandidate([
           otherAccount.account.address,
           "Laura Johnson",
-          BigInt(31),
+          getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "555 Johnson Ave",
           "laura.johnson@example.com",
@@ -471,7 +472,7 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
           ]);
         assert.equal(candidateDetails[0], "Laura Johnson");
-        assert.equal(candidateDetails[1], 31n);
+        assert.equal(candidateDetails[1], getDobEpochFromAge(31));
         assert.equal(Number(candidateDetails[2]), GenderEnum.FEMALE);
         assert.equal(candidateDetails[3], "555 Johnson Ave");
         assert.equal(candidateDetails[4], "laura.johnson@example.com");
@@ -511,7 +512,7 @@ describe("CandidateDatabase Unit Tests", function () {
         const hash1 = await candidateDatabase.write.adminAddCandidate([
           otherAccount.account.address,
           "Michael",
-          BigInt(28),
+          getDobEpochFromAge(28),
           GenderEnum.MALE,
           "999 Michael Rd",
           "michael@example.com",
@@ -709,7 +710,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash = await candidateDatabase.write.adminAddCandidate([
             otherAccount.account.address,
             "Michael",
-            BigInt(38),
+            getDobEpochFromAge(38),
             GenderEnum.MALE,
             "666 Science Way",
             "michael@example.com",
@@ -722,12 +723,13 @@ describe("CandidateDatabase Unit Tests", function () {
             otherAccount.account.address,
           ]);
           assert.equal(details[0], "Michael");
-          assert.equal(details[1], 38n);
+          assert.equal(details[1], getDobEpochFromAge(38));
           assert.equal(Number(details[2]), GenderEnum.MALE);
           assert.equal(details[3], "666 Science Way");
           assert.equal(details[4], "michael@example.com");
           assert.equal(details[5], "PhD Physics");
           assert.equal(details[6], "Scientific Advancement");
+          assert.isAtLeast(Number(details[7]), 1); // timeWhenRegisteredEpoch should be valid
         });
       });
 
@@ -753,7 +755,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash1 = await candidateDatabase.write.adminAddCandidate([
             otherAccount.account.address,
             "Nora",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.FEMALE,
             "777 Justice Rd",
             "nora@example.com",
@@ -765,7 +767,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash2 = await candidateDatabase.write.adminAddCandidate([
             thirdAccount.account.address,
             "Oscar",
-            BigInt(35),
+            getDobEpochFromAge(35),
             GenderEnum.MALE,
             "888 Business Pkwy",
             "oscar@example.com",
@@ -799,7 +801,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash1 = await candidateDatabase.write.adminAddCandidate([
             otherAccount.account.address,
             "Patricia",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.FEMALE,
             "999 Platform One Circle",
             "patricia@example.com",
@@ -811,7 +813,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash2 = await candidateDatabase.write.adminAddCandidate([
             thirdAccount.account.address,
             "Quentin",
-            BigInt(35),
+            getDobEpochFromAge(35),
             GenderEnum.MALE,
             "1010 Platform Two Blvd",
             "quentin@example.com",
@@ -852,7 +854,7 @@ describe("CandidateDatabase Unit Tests", function () {
           );
           const hash = await candidateDatabase.write.addCandidate([
             "Steven",
-            BigInt(42),
+            getDobEpochFromAge(42),
             GenderEnum.MALE,
             "1111 Constitution Ave",
             "steven@example.com",
@@ -863,7 +865,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
           const profile = await candidateDatabase.read.getMyCandidateDetails();
           assert.equal(profile[0], "Steven");
-          assert.equal(profile[1], 42n);
+          assert.equal(profile[1], getDobEpochFromAge(42));
           assert.equal(Number(profile[2]), GenderEnum.MALE);
           assert.equal(profile[3], "1111 Constitution Ave");
           assert.equal(profile[4], "steven@example.com");
@@ -888,7 +890,7 @@ describe("CandidateDatabase Unit Tests", function () {
           );
           const hash = await candidateDatabase.write.addCandidate([
             "Tina",
-            BigInt(27),
+            getDobEpochFromAge(27),
             GenderEnum.FEMALE,
             "1212 Environment St",
             "tina@example.com",
@@ -920,7 +922,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash = await candidateDatabase.write.adminAddCandidate([
             otherAccount.account.address,
             "Uma",
-            BigInt(33),
+            getDobEpochFromAge(33),
             GenderEnum.FEMALE,
             "1313 Education Dr",
             "uma@example.com",
@@ -958,7 +960,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash1 = await candidateDatabase.write.adminAddCandidate([
             otherAccount.account.address,
             "Victor",
-            BigInt(36),
+            getDobEpochFromAge(36),
             GenderEnum.MALE,
             "1414 Economy Blvd",
             "victor@example.com",
@@ -970,7 +972,7 @@ describe("CandidateDatabase Unit Tests", function () {
           const hash2 = await candidateDatabase.write.adminAddCandidate([
             thirdAccount.account.address,
             "Wendy",
-            BigInt(41),
+            getDobEpochFromAge(41),
             GenderEnum.FEMALE,
             "1515 Research Park",
             "wendy@example.com",

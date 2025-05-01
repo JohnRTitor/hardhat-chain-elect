@@ -4,6 +4,7 @@ import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
 import { GenderEnum } from "../../types";
+import { getDobEpochFromAge } from "../../lib/utils";
 
 describe("VoterDatabase Unit Tests", function () {
   before(function () {
@@ -25,10 +26,11 @@ describe("VoterDatabase Unit Tests", function () {
     describe("addVoter", function () {
       it("should revert if under 18", async function () {
         const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+
         await expect(
           voterDatabase.write.addVoter([
             "Alice",
-            BigInt(17),
+            getDobEpochFromAge(17),
             GenderEnum.MALE,
             "Some Address",
           ])
@@ -41,7 +43,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         const hash = await voterDatabase.write.addVoter([
           "Alice",
-          BigInt(20),
+          getDobEpochFromAge(20),
           GenderEnum.FEMALE,
           "Some Address",
         ]);
@@ -49,7 +51,7 @@ describe("VoterDatabase Unit Tests", function () {
         await expect(
           voterDatabase.write.addVoter([
             "Alice",
-            BigInt(20),
+            getDobEpochFromAge(20),
             GenderEnum.FEMALE,
             "Some Address",
           ])
@@ -60,9 +62,10 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, owner, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         const hash = await voterDatabase.write.addVoter([
           "Alice",
-          BigInt(20),
+          getDobEpochFromAge(20),
           GenderEnum.MALE,
           "Some Address",
         ]);
@@ -79,7 +82,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         const hash = await voterDatabase.write.addVoter([
           "Alice",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "123 Main St",
         ]);
@@ -87,7 +90,7 @@ describe("VoterDatabase Unit Tests", function () {
 
         const details = await voterDatabase.read.getMyDetails();
         assert.equal(details[0], "Alice");
-        assert.equal(details[1], 25n);
+        assert.equal(details[1], getDobEpochFromAge(25));
         assert.equal(details[2], GenderEnum.MALE);
         assert.equal(details[3], "123 Main St");
         assert.equal(details[4], false); // hasVoted should be false
@@ -97,10 +100,11 @@ describe("VoterDatabase Unit Tests", function () {
     describe("updateVoter", function () {
       it("should revert if not registered", async function () {
         const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+
         await expect(
           voterDatabase.write.updateVoter([
             "Bob",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.FEMALE,
             "New Address",
           ])
@@ -113,7 +117,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         const hash1 = await voterDatabase.write.addVoter([
           "Bob",
-          BigInt(30),
+          getDobEpochFromAge(30),
           GenderEnum.FEMALE,
           "Some Address",
         ]);
@@ -125,7 +129,7 @@ describe("VoterDatabase Unit Tests", function () {
         await expect(
           voterDatabase.write.updateVoter([
             "BobUpdated",
-            BigInt(31),
+            getDobEpochFromAge(31),
             GenderEnum.FEMALE,
             "Updated Address",
           ])
@@ -138,7 +142,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         const hash1 = await voterDatabase.write.addVoter([
           "Charlie",
-          BigInt(22),
+          getDobEpochFromAge(22),
           GenderEnum.MALE,
           "Some Address",
         ]);
@@ -146,7 +150,7 @@ describe("VoterDatabase Unit Tests", function () {
 
         const hash2 = await voterDatabase.write.updateVoter([
           "Charles",
-          BigInt(23),
+          getDobEpochFromAge(23),
           GenderEnum.MALE,
           "New Address",
         ]);
@@ -163,7 +167,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         const hash1 = await voterDatabase.write.addVoter([
           "David",
-          BigInt(40),
+          getDobEpochFromAge(40),
           GenderEnum.MALE,
           "Old Street",
         ]);
@@ -171,7 +175,7 @@ describe("VoterDatabase Unit Tests", function () {
 
         const hash2 = await voterDatabase.write.updateVoter([
           "Dave",
-          BigInt(41),
+          getDobEpochFromAge(41),
           GenderEnum.FEMALE,
           "New Street",
         ]);
@@ -179,7 +183,7 @@ describe("VoterDatabase Unit Tests", function () {
 
         const details = await voterDatabase.read.getMyDetails();
         assert.equal(details[0], "Dave");
-        assert.equal(details[1], 41n);
+        assert.equal(details[1], getDobEpochFromAge(41));
         assert.equal(details[2], GenderEnum.FEMALE);
         assert.equal(details[3], "New Street");
         assert.equal(details[4], false); // hasVoted should still be false
@@ -198,9 +202,10 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, owner, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         const hash1 = await voterDatabase.write.addVoter([
           "Emily",
-          BigInt(30),
+          getDobEpochFromAge(30),
           GenderEnum.FEMALE,
           "Some Address",
         ]);
@@ -218,9 +223,10 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         const hash1 = await voterDatabase.write.addVoter([
           "Frank",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
         ]);
@@ -246,9 +252,10 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, owner, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         const hash1 = await voterDatabase.write.addVoter([
           "Grace",
-          BigInt(35),
+          getDobEpochFromAge(35),
           GenderEnum.FEMALE,
           "Some Address",
         ]);
@@ -266,9 +273,10 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         const hash1 = await voterDatabase.write.addVoter([
           "Helen",
-          BigInt(42),
+          getDobEpochFromAge(42),
           GenderEnum.FEMALE,
           "Some Address",
         ]);
@@ -292,12 +300,13 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         await expect(
           voterDatabase.write.adminAddVoter(
             [
               otherAccount.account.address,
               "Tom",
-              BigInt(25),
+              getDobEpochFromAge(25),
               GenderEnum.MALE,
               "Some Address",
               false,
@@ -309,11 +318,12 @@ describe("VoterDatabase Unit Tests", function () {
 
       it("should revert with zero address", async function () {
         const { voterDatabase } = await loadFixture(deployVoterDatabaseFixture);
+
         await expect(
           voterDatabase.write.adminAddVoter([
             "0x0000000000000000000000000000000000000000",
             "Tom",
-            BigInt(25),
+            getDobEpochFromAge(25),
             GenderEnum.MALE,
             "Some Address",
             false,
@@ -324,10 +334,11 @@ describe("VoterDatabase Unit Tests", function () {
       it("should emit AdminAddedVoter on success", async function () {
         const { voterDatabase, otherAccount, owner, publicClient } =
           await loadFixture(deployVoterDatabaseFixture);
+
         const hash = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Tom",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
           false,
@@ -349,12 +360,13 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         await expect(
           voterDatabase.write.adminUpdateVoter(
             [
               otherAccount.account.address,
               "Tom Updated",
-              BigInt(26),
+              getDobEpochFromAge(26),
               GenderEnum.FEMALE,
               "New Address",
               false,
@@ -368,11 +380,12 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
+
         await expect(
           voterDatabase.write.adminUpdateVoter([
             otherAccount.account.address,
             "Tom Updated",
-            BigInt(26),
+            getDobEpochFromAge(26),
             GenderEnum.FEMALE,
             "New Address",
             false,
@@ -384,10 +397,11 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, otherAccount, owner, publicClient } =
           await loadFixture(deployVoterDatabaseFixture);
         // First add a voter
+
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Tom",
-          BigInt(25),
+          getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
           false,
@@ -398,7 +412,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash2 = await voterDatabase.write.adminUpdateVoter([
           otherAccount.account.address,
           "Tom Updated",
-          BigInt(26),
+          getDobEpochFromAge(26),
           GenderEnum.FEMALE,
           "New Address",
           true,
@@ -422,7 +436,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Jerry",
-          BigInt(30),
+          getDobEpochFromAge(30),
           GenderEnum.MALE,
           "Some Address",
           true,
@@ -433,7 +447,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash2 = await voterDatabase.write.adminUpdateVoter([
           otherAccount.account.address,
           "Jerry Updated",
-          BigInt(31),
+          getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "New Address",
           true,
@@ -445,7 +459,7 @@ describe("VoterDatabase Unit Tests", function () {
           otherAccount.account.address,
         ]);
         assert.equal(voterDetails[0], "Jerry Updated");
-        assert.equal(voterDetails[1], 31n);
+        assert.equal(voterDetails[1], getDobEpochFromAge(31));
         assert.equal(voterDetails[2], GenderEnum.FEMALE);
         assert.equal(voterDetails[3], "New Address");
         assert.equal(voterDetails[4], true);
@@ -480,7 +494,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Kate",
-          BigInt(33),
+          getDobEpochFromAge(33),
           GenderEnum.FEMALE,
           "Some Address",
           false,
@@ -510,7 +524,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Liam",
-          BigInt(27),
+          getDobEpochFromAge(27),
           GenderEnum.MALE,
           "Some Address",
           false,
@@ -564,7 +578,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Maria",
-          BigInt(29),
+          getDobEpochFromAge(29),
           GenderEnum.FEMALE,
           "Some Address",
           false,
@@ -595,7 +609,7 @@ describe("VoterDatabase Unit Tests", function () {
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Nina",
-          BigInt(31),
+          getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "Some Address",
           false,
@@ -655,7 +669,7 @@ describe("VoterDatabase Unit Tests", function () {
           );
           const hash = await voterDatabase.write.addVoter([
             "Quinn",
-            BigInt(38),
+            getDobEpochFromAge(38),
             GenderEnum.MALE,
             "456 Oak St",
           ]);
@@ -663,7 +677,7 @@ describe("VoterDatabase Unit Tests", function () {
 
           const details = await voterDatabase.read.getMyDetails();
           assert.equal(details[0], "Quinn");
-          assert.equal(details[1], 38n);
+          assert.equal(details[1], getDobEpochFromAge(38));
           assert.equal(details[2], GenderEnum.MALE);
           assert.equal(details[3], "456 Oak St");
           assert.equal(details[4], false);
@@ -683,9 +697,10 @@ describe("VoterDatabase Unit Tests", function () {
           const { voterDatabase, publicClient } = await loadFixture(
             deployVoterDatabaseFixture
           );
+
           const hash = await voterDatabase.write.addVoter([
             "Ryan",
-            BigInt(27),
+            getDobEpochFromAge(27),
             GenderEnum.MALE,
             "Some Address",
           ]);
@@ -710,9 +725,10 @@ describe("VoterDatabase Unit Tests", function () {
           const { voterDatabase, publicClient } = await loadFixture(
             deployVoterDatabaseFixture
           );
+
           const hash = await voterDatabase.write.addVoter([
             "Samantha",
-            BigInt(33),
+            getDobEpochFromAge(33),
             GenderEnum.FEMALE,
             "Some Address",
           ]);
@@ -728,7 +744,7 @@ describe("VoterDatabase Unit Tests", function () {
           );
           const hash1 = await voterDatabase.write.addVoter([
             "Tyler",
-            BigInt(29),
+            getDobEpochFromAge(29),
             GenderEnum.MALE,
             "Some Address",
           ]);
@@ -782,7 +798,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash1 = await voterDatabase.write.adminAddVoter([
             otherAccount.account.address,
             "User One",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
             false,
@@ -792,7 +808,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash2 = await voterDatabase.write.adminAddVoter([
             thirdAccount.account.address,
             "User Two",
-            BigInt(35),
+            getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
             true,
@@ -824,7 +840,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash1 = await voterDatabase.write.adminAddVoter([
             otherAccount.account.address,
             "User One",
-            BigInt(30),
+            getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
             false,
@@ -834,7 +850,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash2 = await voterDatabase.write.adminAddVoter([
             thirdAccount.account.address,
             "User Two",
-            BigInt(35),
+            getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
             true,
@@ -891,7 +907,7 @@ describe("VoterDatabase Unit Tests", function () {
           const hash = await voterDatabase.write.adminAddVoter([
             otherAccount.account.address,
             "Test User",
-            BigInt(42),
+            getDobEpochFromAge(42),
             GenderEnum.FEMALE,
             "Test Address",
             true,
@@ -903,7 +919,7 @@ describe("VoterDatabase Unit Tests", function () {
           ]);
 
           assert.equal(details[0], "Test User");
-          assert.equal(details[1], 42n);
+          assert.equal(details[1], getDobEpochFromAge(42));
           assert.equal(details[2], GenderEnum.FEMALE);
           assert.equal(details[3], "Test Address");
           assert.equal(details[4], true);

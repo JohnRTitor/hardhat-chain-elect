@@ -42,13 +42,13 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @notice Stores details for a single candidate
     struct Candidate {
         string name;
-        uint256 age;
+        uint256 dateOfBirthEpoch;
         Gender gender;
         string presentAddress;
         string email;
         string qualifications;
         string manifesto;
-        uint256 registrationTimestamp;
+        uint256 timeWhenRegisteredEpoch;
         bool isRegistered;
     }
 
@@ -87,7 +87,7 @@ contract CandidateDatabase is ICandidateDatabase {
 
     /// @notice Register a new candidate
     /// @param _name Name of the candidate
-    /// @param _age Age of the candidate (must be 18 or older)
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the candidate (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the candidate
     /// @param _email Email address of the candidate
@@ -95,26 +95,29 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _manifesto Election manifesto of the candidate
     function addCandidate(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
     ) external override {
-        if (_age < 18) revert CandidateDatabase__NotEligible();
+        // Calculate age - use 365 days which Solidity understands as seconds in a year
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert CandidateDatabase__NotEligible();
+
         if (s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
 
         s_candidates[msg.sender] = Candidate({
             name: _name,
-            age: _age,
+            dateOfBirthEpoch: _dateOfBirthEpoch,
             gender: _gender,
             presentAddress: _presentAddress,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
-            registrationTimestamp: block.timestamp,
+            timeWhenRegisteredEpoch: block.timestamp,
             isRegistered: true
         });
 
@@ -124,7 +127,7 @@ contract CandidateDatabase is ICandidateDatabase {
 
     /// @notice Update candidate information
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     /// @param _email Updated email
@@ -132,16 +135,20 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _manifesto Updated manifesto
     function updateCandidate(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
     ) external override onlyRegistered {
+        // Verify age eligibility with the new DOB
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert CandidateDatabase__NotEligible();
+
         Candidate storage candidate = s_candidates[msg.sender];
         candidate.name = _name;
-        candidate.age = _age;
+        candidate.dateOfBirthEpoch = _dateOfBirthEpoch;
         candidate.gender = _gender;
         candidate.presentAddress = _presentAddress;
         candidate.email = _email;
@@ -176,7 +183,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @dev Only owner/admins can call this function
     /// @param _candidateAddress Address of the candidate to add
     /// @param _name Name of the candidate
-    /// @param _age Age of the candidate
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the candidate
     /// @param _presentAddress Present address of the candidate
     /// @param _email Email of the candidate
@@ -185,7 +192,7 @@ contract CandidateDatabase is ICandidateDatabase {
     function adminAddCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -194,19 +201,23 @@ contract CandidateDatabase is ICandidateDatabase {
     ) external override onlyAdmin {
         if (_candidateAddress == address(0))
             revert CandidateDatabase__InvalidAddress();
-        if (_age < 18) revert CandidateDatabase__NotEligible();
+
+        // Calculate age - use 365 days which Solidity understands as seconds in a year
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert CandidateDatabase__NotEligible();
+
         if (s_candidates[_candidateAddress].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
 
         s_candidates[_candidateAddress] = Candidate({
             name: _name,
-            age: _age,
+            dateOfBirthEpoch: _dateOfBirthEpoch,
             gender: _gender,
             presentAddress: _presentAddress,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
-            registrationTimestamp: block.timestamp,
+            timeWhenRegisteredEpoch: block.timestamp,
             isRegistered: true
         });
 
@@ -218,7 +229,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @dev Only owner/admins can call this function
     /// @param _candidateAddress Address of the candidate to update
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
     /// @param _email Updated email
@@ -227,7 +238,7 @@ contract CandidateDatabase is ICandidateDatabase {
     function adminUpdateCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -237,11 +248,15 @@ contract CandidateDatabase is ICandidateDatabase {
         if (!s_candidates[_candidateAddress].isRegistered)
             revert CandidateDatabase__NotRegistered();
 
+        // Check age eligibility
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert CandidateDatabase__NotEligible();
+
         Candidate storage candidate = s_candidates[_candidateAddress];
 
-        // Update details but preserve timestamp
+        // Update details but preserve timeWhenRegisteredEpoch
         candidate.name = _name;
-        candidate.age = _age;
+        candidate.dateOfBirthEpoch = _dateOfBirthEpoch;
         candidate.gender = _gender;
         candidate.presentAddress = _presentAddress;
         candidate.email = _email;
@@ -295,24 +310,28 @@ contract CandidateDatabase is ICandidateDatabase {
 
         try source.getCandidateDetails(_candidateAddress) returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 timeWhenRegisteredEpoch
         ) {
+            // Check age eligibility
+            uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+            if (age < 18) revert CandidateDatabase__NotEligible();
+
             // Add candidate to this contract
             s_candidates[_candidateAddress] = Candidate({
                 name: name,
-                age: age,
+                dateOfBirthEpoch: dateOfBirthEpoch,
                 gender: gender,
                 presentAddress: presentAddress,
                 email: email,
                 qualifications: qualifications,
                 manifesto: manifesto,
-                registrationTimestamp: registrationTimestamp,
+                timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
                 isRegistered: true
             });
 
@@ -347,24 +366,28 @@ contract CandidateDatabase is ICandidateDatabase {
 
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
-                uint256 age,
+                uint256 dateOfBirthEpoch,
                 Gender gender,
                 string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
-                uint256 registrationTimestamp
+                uint256 timeWhenRegisteredEpoch
             ) {
+                // Check age eligibility
+                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+                if (age < 18) continue; // Skip ineligible candidates
+
                 // Add candidate to this contract
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
-                    age: age,
+                    dateOfBirthEpoch: dateOfBirthEpoch,
                     gender: gender,
                     presentAddress: presentAddress,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
-                    registrationTimestamp: registrationTimestamp,
+                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
                     isRegistered: true
                 });
 
@@ -408,24 +431,28 @@ contract CandidateDatabase is ICandidateDatabase {
 
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
-                uint256 age,
+                uint256 dateOfBirthEpoch,
                 Gender gender,
                 string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
-                uint256 registrationTimestamp
+                uint256 timeWhenRegisteredEpoch
             ) {
+                // Check age eligibility
+                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+                if (age < 18) continue; // Skip ineligible candidates
+
                 // Add candidate to this contract
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
-                    age: age,
+                    dateOfBirthEpoch: dateOfBirthEpoch,
                     gender: gender,
                     presentAddress: presentAddress,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
-                    registrationTimestamp: registrationTimestamp,
+                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
                     isRegistered: true
                 });
 
@@ -478,6 +505,15 @@ contract CandidateDatabase is ICandidateDatabase {
         emit AdminRemoved(_adminAddress, msg.sender);
     }
 
+    /// @notice Calculate age from date of birth
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
+    /// @return Age in years
+    function calculateAge(
+        uint256 _dateOfBirthEpoch
+    ) public view returns (uint256) {
+        return (block.timestamp - _dateOfBirthEpoch) / 365 days;
+    }
+
     /// @notice Check if an address is an admin
     /// @param _address Address to check
     /// @return True if the address is an admin, false otherwise
@@ -512,13 +548,13 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @notice Get details of a specific candidate (publicly accessible)
     /// @param _candidateAddress Address of the candidate
     /// @return name The candidate's name
-    /// @return age The candidate's age
+    /// @return dateOfBirthEpoch The candidate's date of birth as Unix timestamp
     /// @return gender The candidate's gender
     /// @return presentAddress The candidate's address
     /// @return email The candidate's email
     /// @return qualifications The candidate's qualifications
     /// @return manifesto The candidate's manifesto
-    /// @return registrationTimestamp When the candidate registered
+    /// @return timeWhenRegisteredEpoch When the candidate registered
     function getCandidateDetails(
         address _candidateAddress
     )
@@ -527,13 +563,13 @@ contract CandidateDatabase is ICandidateDatabase {
         override
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 timeWhenRegisteredEpoch
         )
     {
         if (!s_candidates[_candidateAddress].isRegistered) {
@@ -542,13 +578,13 @@ contract CandidateDatabase is ICandidateDatabase {
         Candidate memory candidate = s_candidates[_candidateAddress];
         return (
             candidate.name,
-            candidate.age,
+            candidate.dateOfBirthEpoch,
             candidate.gender,
             candidate.presentAddress,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
-            candidate.registrationTimestamp
+            candidate.timeWhenRegisteredEpoch
         );
     }
 
@@ -565,13 +601,13 @@ contract CandidateDatabase is ICandidateDatabase {
 
     /// @notice Get your own candidate details
     /// @return name Your name
-    /// @return age Your age
+    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your manifesto
-    /// @return registrationTimestamp When you registered
+    /// @return timeWhenRegisteredEpoch When you registered
     function getMyCandidateDetails()
         public
         view
@@ -579,25 +615,25 @@ contract CandidateDatabase is ICandidateDatabase {
         onlyRegistered
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 timeWhenRegisteredEpoch
         )
     {
         Candidate memory candidate = s_candidates[msg.sender];
         return (
             candidate.name,
-            candidate.age,
+            candidate.dateOfBirthEpoch,
             candidate.gender,
             candidate.presentAddress,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
-            candidate.registrationTimestamp
+            candidate.timeWhenRegisteredEpoch
         );
     }
 
@@ -625,5 +661,11 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @return count The number of registered candidates
     function getCandidateCount() public view override returns (uint256 count) {
         return s_candidateAddresses.length;
+    }
+
+    /// @notice Get your current age based on stored date of birth
+    /// @return Your current age in years
+    function getMyAge() public view onlyRegistered returns (uint256) {
+        return calculateAge(s_candidates[msg.sender].dateOfBirthEpoch);
     }
 }

@@ -1,7 +1,7 @@
 /// @title VoterDatabase Contract
 /// @author Masum Reza
 /// @notice This contract manages voter registration and voting status
-/// @ Intended for use within an electronic voting machine/system
+/// @notice Intended for use within an electronic voting machine/system
 /// @dev functions specifically prepended with admin may only be called by the contract owner
 /// @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
 
@@ -44,11 +44,12 @@ contract VoterDatabase is IVoterDatabase {
     /// @notice Stores details for a single voter
     struct Voter {
         string name;
-        uint256 age;
+        uint256 dateOfBirthEpoch;
         Gender gender;
         string presentAddress;
         bool hasVoted;
         bool isRegistered;
+        uint256 timeWhenRegisteredEpoch;
     }
 
     address private immutable i_owner;
@@ -86,26 +87,30 @@ contract VoterDatabase is IVoterDatabase {
 
     /// @notice Register a new voter
     /// @param _name Name of the voter
-    /// @param _age Age of the voter (must be 18 or older)
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
     function addVoter(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress
     ) external override {
-        if (_age < 18) revert VoterDatabase__NotEligible();
+        // Calculate age - use 365 days which Solidity understands as seconds in a year
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert VoterDatabase__NotEligible();
+
         if (s_voters[msg.sender].isRegistered)
             revert VoterDatabase__AlreadyRegistered();
 
         s_voters[msg.sender] = Voter({
             name: _name,
-            age: _age,
+            dateOfBirthEpoch: _dateOfBirthEpoch,
             gender: _gender,
             presentAddress: _presentAddress,
             hasVoted: false,
-            isRegistered: true
+            isRegistered: true,
+            timeWhenRegisteredEpoch: block.timestamp
         });
 
         s_voterAddresses.push(msg.sender);
@@ -114,21 +119,25 @@ contract VoterDatabase is IVoterDatabase {
 
     /// @notice Update voter information (only if registered and not yet voted)
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     function updateVoter(
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress
     ) external override onlyRegistered {
         if (s_voters[msg.sender].hasVoted)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
+        // Verify age eligibility with the new DOB
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert VoterDatabase__NotEligible();
+
         Voter storage voter = s_voters[msg.sender];
         voter.name = _name;
-        voter.age = _age;
+        voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
 
@@ -167,14 +176,14 @@ contract VoterDatabase is IVoterDatabase {
     /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter to add
     /// @param _name Name of the voter
-    /// @param _age Age of the voter
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter
     /// @param _presentAddress Present address of the voter
     /// @param _hasVoted Initial voting status of the voter
     function adminAddVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
@@ -185,9 +194,14 @@ contract VoterDatabase is IVoterDatabase {
         if (s_voters[_voterAddress].isRegistered)
             revert VoterDatabase__AlreadyRegistered();
 
+        // Check age eligibility
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert VoterDatabase__NotEligible();
+
         s_voters[_voterAddress] = Voter({
             name: _name,
-            age: _age,
+            dateOfBirthEpoch: _dateOfBirthEpoch,
+            timeWhenRegisteredEpoch: block.timestamp,
             gender: _gender,
             presentAddress: _presentAddress,
             hasVoted: _hasVoted,
@@ -203,14 +217,14 @@ contract VoterDatabase is IVoterDatabase {
     /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter to update
     /// @param _name Updated name
-    /// @param _age Updated age
+    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
     /// @param _hasVoted Updated voting status
     function adminUpdateVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _age,
+        uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
         bool _hasVoted
@@ -218,11 +232,15 @@ contract VoterDatabase is IVoterDatabase {
         if (!s_voters[_voterAddress].isRegistered)
             revert VoterDatabase__NotRegistered();
 
+        // Check age eligibility
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        if (age < 18) revert VoterDatabase__NotEligible();
+
         Voter storage voter = s_voters[_voterAddress];
 
-        // Update details but preserve voting status
+        // Update details but preserve timeWhenRegisteredEpoch
         voter.name = _name;
-        voter.age = _age;
+        voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
         voter.hasVoted = _hasVoted;
@@ -288,15 +306,21 @@ contract VoterDatabase is IVoterDatabase {
 
         try source.adminGetVoterDetails(_voterAddress) returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             IVoterDatabase.Gender gender,
             string memory presentAddress,
-            bool hasVoted
+            bool hasVoted,
+            uint256 /* timeWhenRegisteredEpoch */
         ) {
+            // Check age eligibility
+            uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+            if (age < 18) revert VoterDatabase__NotEligible();
+
             // Add voter to this contract
             s_voters[_voterAddress] = Voter({
                 name: name,
-                age: age,
+                dateOfBirthEpoch: dateOfBirthEpoch,
+                timeWhenRegisteredEpoch: block.timestamp,
                 gender: Gender(uint(gender)),
                 presentAddress: presentAddress,
                 hasVoted: hasVoted,
@@ -334,15 +358,21 @@ contract VoterDatabase is IVoterDatabase {
 
             try source.adminGetVoterDetails(voterAddress) returns (
                 string memory name,
-                uint256 age,
+                uint256 dateOfBirthEpoch, // Updated from dateOfBirth to dateOfBirthEpoch
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
-                bool hasVoted
+                bool hasVoted,
+                uint256 /* timeWhenRegisteredEpoch */
             ) {
+                // Check age eligibility
+                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+                if (age < 18) continue; // Skip ineligible voters
+
                 // Add voter to this contract
                 s_voters[voterAddress] = Voter({
                     name: name,
-                    age: age,
+                    dateOfBirthEpoch: dateOfBirthEpoch,
+                    timeWhenRegisteredEpoch: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
                     hasVoted: hasVoted,
@@ -389,15 +419,21 @@ contract VoterDatabase is IVoterDatabase {
 
             try source.adminGetVoterDetails(voterAddress) returns (
                 string memory name,
-                uint256 age,
+                uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
-                bool hasVoted
+                bool hasVoted,
+                uint256 /* timeWhenRegisteredEpoch */
             ) {
+                // Check age eligibility
+                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
+                if (age < 18) continue; // Skip ineligible voters
+
                 // Add voter to this contract
                 s_voters[voterAddress] = Voter({
                     name: name,
-                    age: age,
+                    dateOfBirthEpoch: dateOfBirthEpoch,
+                    timeWhenRegisteredEpoch: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
                     hasVoted: hasVoted,
@@ -419,7 +455,7 @@ contract VoterDatabase is IVoterDatabase {
     /// @notice Get details of a specific voter (only callable by owner/admins for privacy reasons)
     /// @param _voterAddress Address of the voter
     /// @return name The voter's name
-    /// @return age The voter's age
+    /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
     /// @return hasVoted Whether the voter has cast their vote
@@ -432,10 +468,11 @@ contract VoterDatabase is IVoterDatabase {
         onlyAdmin
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted
+            bool hasVoted,
+            uint256 timeWhenRegisteredEpoch
         )
     {
         if (!s_voters[_voterAddress].isRegistered) {
@@ -444,10 +481,11 @@ contract VoterDatabase is IVoterDatabase {
         Voter memory voter = s_voters[_voterAddress];
         return (
             voter.name,
-            voter.age,
+            voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
-            voter.hasVoted
+            voter.hasVoted,
+            voter.timeWhenRegisteredEpoch
         );
     }
 
@@ -511,6 +549,15 @@ contract VoterDatabase is IVoterDatabase {
         emit AdminRemoved(_adminAddress, msg.sender);
     }
 
+    /// @notice Calculate age from date of birth
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
+    /// @return Age in years
+    function calculateAge(
+        uint256 _dateOfBirthEpoch
+    ) public view returns (uint256) {
+        return (block.timestamp - _dateOfBirthEpoch) / 365 days;
+    }
+
     /// @notice Check if an address is an admin
     /// @param _address Address to check
     /// @return True if the address is an admin, false otherwise
@@ -544,7 +591,7 @@ contract VoterDatabase is IVoterDatabase {
 
     /// @notice Get your own voter details
     /// @return name Your name
-    /// @return age Your age
+    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
     /// @return hasVoted Whether you have voted
@@ -555,7 +602,7 @@ contract VoterDatabase is IVoterDatabase {
         onlyRegistered
         returns (
             string memory name,
-            uint256 age,
+            uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
             bool hasVoted
@@ -564,7 +611,7 @@ contract VoterDatabase is IVoterDatabase {
         Voter memory voter = s_voters[msg.sender];
         return (
             voter.name,
-            voter.age,
+            voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
             voter.hasVoted
@@ -592,5 +639,11 @@ contract VoterDatabase is IVoterDatabase {
         returns (bool hasVoted)
     {
         return s_voters[msg.sender].hasVoted;
+    }
+
+    /// @notice Get your current age based on stored date of birth
+    /// @return Your current age in years
+    function getMyAge() public view onlyRegistered returns (uint256) {
+        return calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
     }
 }
