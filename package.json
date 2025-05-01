@@ -1,9 +1,15 @@
 {
   "name": "hardhat-chain-elect",
   "version": "1.0.0",
-  "repository": "https://github.com/JohnRTitor/hardhat-chain-elect",
-  "author": "John Titor <50095635+JohnRTitor@users.noreply.github.com>",
+  "author": {
+    "name": "Masum Reza",
+    "url": "https://johnrtitor-portfolio-website.vercel.app/"
+  },
   "license": "MIT",
+  "repository": "https://github.com/JohnRTitor/hardhat-chain-elect",
+  "bugs": {
+    "url": "https://github.com/JohnRTitor/hardhat-chain-elect/issues"
+  },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@nomicfoundation/hardhat-ignition": "^0.15.0",
