@@ -44,6 +44,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "alice@example.com",
             "BSc",
             "My Manifesto",
+            "123 Election St",
           ])
         ).to.be.rejectedWith("CandidateDatabase__NotEligible");
       });
@@ -59,6 +60,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "alice@example.com",
           "BSc",
           "My Manifesto",
+          "123 Election St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
         await expect(
@@ -69,6 +71,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "alice@example.com",
             "BSc",
             "My Manifesto",
+            "123 Election St",
           ])
         ).to.be.rejectedWith("CandidateDatabase__AlreadyRegistered");
       });
@@ -84,6 +87,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "alice@example.com",
           "BSc",
           "My Manifesto",
+          "123 Election St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -106,6 +110,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "alice@example.com",
           "PhD in Computer Science",
           "Making technology accessible for all",
+          "456 Tech Ave",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -116,6 +121,7 @@ describe("CandidateDatabase Unit Tests", function () {
         assert.equal(details[3], "alice@example.com");
         assert.equal(details[4], "PhD in Computer Science");
         assert.equal(details[5], "Making technology accessible for all");
+        assert.equal(details[6], "456 Tech Ave");
       });
     });
 
@@ -132,6 +138,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "bob@example.com",
             "MSc",
             "New Ideas",
+            "789 Update Lane",
           ])
         ).to.be.rejectedWith("CandidateDatabase__NotRegistered");
       });
@@ -147,6 +154,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "charlie@example.com",
           "BA",
           "Original Manifesto",
+          "101 First St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -157,6 +165,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "charlie.updated@example.com",
           "BA, MBA",
           "Updated Manifesto",
+          "202 Second St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -179,6 +188,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "david@example.com",
           "PhD",
           "Original Platform",
+          "303 Old St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -189,6 +199,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "david.smith@example.com",
           "PhD, Post-Doc",
           "Updated Platform",
+          "404 New St",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -199,6 +210,7 @@ describe("CandidateDatabase Unit Tests", function () {
         assert.equal(details[3], "david.smith@example.com");
         assert.equal(details[4], "PhD, Post-Doc");
         assert.equal(details[5], "Updated Platform");
+        assert.equal(details[6], "404 New St");
       });
     });
 
@@ -214,6 +226,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "emily@example.com",
             "BSc",
             "My Manifesto",
+            "505 Delete Ave",
           ],
           { account: otherAccount.account }
         );
@@ -251,6 +264,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "frank@example.com",
             "MSc",
             "Some Manifesto",
+            "606 Frank St",
           ],
           { account: otherAccount.account }
         );
@@ -280,6 +294,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "grace@example.com",
             "BA",
             "My Platform",
+            "707 Grace Blvd",
           ],
           { account: otherAccount.account }
         );
@@ -321,6 +336,7 @@ describe("CandidateDatabase Unit Tests", function () {
               "henry@example.com",
               "BSc",
               "New Ideas",
+              "808 Admin St",
             ],
             { account: otherAccount.account }
           )
@@ -340,6 +356,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "invalid@example.com",
             "BSc",
             "Test",
+            "000 Zero Ave",
           ])
         ).to.be.rejectedWith("CandidateDatabase__InvalidAddress");
       });
@@ -355,6 +372,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "ian@example.com",
           "MSc",
           "Fresh Ideas",
+          "909 Ian Place",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -383,6 +401,7 @@ describe("CandidateDatabase Unit Tests", function () {
               "jane.updated@example.com",
               "PhD",
               "New Platform",
+              "123 Updated St",
             ],
             { account: otherAccount.account }
           )
@@ -402,6 +421,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "jane.updated@example.com",
             "PhD",
             "New Platform",
+            "123 Updated St",
           ])
         ).to.be.rejectedWith("CandidateDatabase__NotRegistered");
       });
@@ -418,6 +438,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "kevin@example.com",
           "BSc",
           "Original Ideas",
+          "222 Kevin Dr",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -430,6 +451,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "kevin.smith@example.com",
           "BSc, MBA",
           "Updated Ideas",
+          "333 Kevin Smith Way",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -455,6 +477,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "laura@example.com",
           "MSc Economics",
           "Economic Reform",
+          "444 Laura Lane",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -467,6 +490,7 @@ describe("CandidateDatabase Unit Tests", function () {
           "laura.johnson@example.com",
           "MSc Economics, PhD Finance",
           "Economic and Financial Reform",
+          "555 Johnson Ave",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -481,6 +505,7 @@ describe("CandidateDatabase Unit Tests", function () {
         assert.equal(candidateDetails[3], "laura.johnson@example.com");
         assert.equal(candidateDetails[4], "MSc Economics, PhD Finance");
         assert.equal(candidateDetails[5], "Economic and Financial Reform");
+        assert.equal(candidateDetails[6], "555 Johnson Ave");
       });
     });
 
@@ -661,6 +686,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "michael@example.com",
             "PhD Physics",
             "Scientific Advancement",
+            "666 Science Way",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -673,6 +699,7 @@ describe("CandidateDatabase Unit Tests", function () {
           assert.equal(details[3], "michael@example.com");
           assert.equal(details[4], "PhD Physics");
           assert.equal(details[5], "Scientific Advancement");
+          assert.equal(details[6], "666 Science Way");
         });
       });
 
@@ -703,6 +730,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "nora@example.com",
             "Law Degree",
             "Justice Reform",
+            "777 Justice Rd",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -714,6 +742,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "oscar@example.com",
             "MBA",
             "Business Growth",
+            "888 Business Pkwy",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -747,6 +776,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "patricia@example.com",
             "BSc",
             "Platform One",
+            "999 Platform One Circle",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -758,6 +788,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "quentin@example.com",
             "MBA",
             "Platform Two",
+            "1010 Platform Two Blvd",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -798,6 +829,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "steven@example.com",
             "JD",
             "Constitutional Reform",
+            "1111 Constitution Ave",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -808,7 +840,8 @@ describe("CandidateDatabase Unit Tests", function () {
           assert.equal(profile[3], "steven@example.com");
           assert.equal(profile[4], "JD");
           assert.equal(profile[5], "Constitutional Reform");
-          assert.isAtLeast(Number(profile[6]), 1); // Timestamp should be valid
+          assert.equal(profile[6], "1111 Constitution Ave");
+          assert.isAtLeast(Number(profile[7]), 1); // Timestamp should be valid
         });
       });
 
@@ -832,6 +865,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "tina@example.com",
             "BSc",
             "Environment First",
+            "1212 Environment St",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -863,6 +897,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "uma@example.com",
             "PhD",
             "Education First",
+            "1313 Education Dr",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -900,6 +935,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "victor@example.com",
             "MBA",
             "Economic Growth",
+            "1414 Economy Blvd",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -911,6 +947,7 @@ describe("CandidateDatabase Unit Tests", function () {
             "wendy@example.com",
             "PhD",
             "Research Focus",
+            "1515 Research Park",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
 

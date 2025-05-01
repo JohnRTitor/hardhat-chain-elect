@@ -60,6 +60,7 @@ interface ICandidateDatabase {
     /// @param _name Candidate's full name
     /// @param _age Candidate's age (must be 18+)
     /// @param _gender Candidate's gender (0 for Male, 1 for Female)
+    /// @param _presentAddress Candidate's present address
     /// @param _email Candidate's email address
     /// @param _qualifications Candidate's educational qualifications
     /// @param _manifesto Candidate's election manifesto or platform
@@ -67,6 +68,7 @@ interface ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -76,6 +78,7 @@ interface ICandidateDatabase {
     /// @param _name Updated name
     /// @param _age Updated age
     /// @param _gender Updated gender
+    /// @param _presentAddress Updated present address
     /// @param _email Updated email address
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
@@ -83,6 +86,7 @@ interface ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -97,6 +101,7 @@ interface ICandidateDatabase {
     /// @param _name Name of the candidate
     /// @param _age Age of the candidate
     /// @param _gender Gender of the candidate
+    /// @param _presentAddress Present address of the candidate
     /// @param _email Email of the candidate
     /// @param _qualifications Qualifications of the candidate
     /// @param _manifesto Manifesto of the candidate
@@ -105,6 +110,7 @@ interface ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -115,6 +121,7 @@ interface ICandidateDatabase {
     /// @param _name Updated name
     /// @param _age Updated age
     /// @param _gender Updated gender
+    /// @param _presentAddress Updated present address
     /// @param _email Updated email
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
@@ -123,6 +130,7 @@ interface ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -182,6 +190,7 @@ interface ICandidateDatabase {
     /// @return name The name of the candidate
     /// @return age The age of the candidate
     /// @return gender The gender of the candidate
+    /// @return presentAddress The present address of the candidate
     /// @return email The email address of the candidate
     /// @return qualifications The qualifications of the candidate
     /// @return manifesto The election manifesto of the candidate
@@ -195,6 +204,7 @@ interface ICandidateDatabase {
             string memory name,
             uint256 age,
             Gender gender,
+            string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -209,6 +219,7 @@ interface ICandidateDatabase {
     /// @return name Your name
     /// @return age Your age
     /// @return gender Your gender
+    /// @return presentAddress Your present address
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
@@ -220,6 +231,7 @@ interface ICandidateDatabase {
             string memory name,
             uint256 age,
             Gender gender,
+            string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,

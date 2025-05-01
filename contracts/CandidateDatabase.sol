@@ -43,6 +43,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string name;
         uint256 age;
         Gender gender;
+        string presentAddress;
         string email;
         string qualifications;
         string manifesto;
@@ -87,6 +88,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _name Candidate's full name
     /// @param _age Candidate's age (must be 18+)
     /// @param _gender Candidate's gender (0 for Male, 1 for Female)
+    /// @param _presentAddress Candidate's current address
     /// @param _email Candidate's email address
     /// @param _qualifications Candidate's educational qualifications
     /// @param _manifesto Candidate's election manifesto or platform
@@ -94,6 +96,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -106,6 +109,7 @@ contract CandidateDatabase is ICandidateDatabase {
             name: _name,
             age: _age,
             gender: _gender,
+            presentAddress: _presentAddress,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
@@ -120,6 +124,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _name Updated name
     /// @param _age Updated age
     /// @param _gender Updated gender
+    /// @param _presentAddress Updated present address
     /// @param _email Updated email address
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
@@ -127,6 +132,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -134,6 +140,7 @@ contract CandidateDatabase is ICandidateDatabase {
         s_candidates[msg.sender].name = _name;
         s_candidates[msg.sender].age = _age;
         s_candidates[msg.sender].gender = _gender;
+        s_candidates[msg.sender].presentAddress = _presentAddress;
         s_candidates[msg.sender].email = _email;
         s_candidates[msg.sender].qualifications = _qualifications;
         s_candidates[msg.sender].manifesto = _manifesto;
@@ -171,6 +178,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _name Name of the candidate
     /// @param _age Age of the candidate
     /// @param _gender Gender of the candidate
+    /// @param _presentAddress Present address of the candidate
     /// @param _email Email of the candidate
     /// @param _qualifications Qualifications of the candidate
     /// @param _manifesto Manifesto of the candidate
@@ -179,6 +187,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -195,6 +204,7 @@ contract CandidateDatabase is ICandidateDatabase {
             name: _name,
             age: _age,
             gender: _gender,
+            presentAddress: _presentAddress,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
@@ -213,6 +223,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @param _name Updated name
     /// @param _age Updated age
     /// @param _gender Updated gender
+    /// @param _presentAddress Updated present address
     /// @param _email Updated email
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
@@ -221,6 +232,7 @@ contract CandidateDatabase is ICandidateDatabase {
         string memory _name,
         uint256 _age,
         Gender _gender,
+        string memory _presentAddress,
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
@@ -234,6 +246,7 @@ contract CandidateDatabase is ICandidateDatabase {
         candidate.name = _name;
         candidate.age = _age;
         candidate.gender = _gender;
+        candidate.presentAddress = _presentAddress;
         candidate.email = _email;
         candidate.qualifications = _qualifications;
         candidate.manifesto = _manifesto;
@@ -260,6 +273,7 @@ contract CandidateDatabase is ICandidateDatabase {
             string memory name,
             uint256 age,
             Gender gender,
+            string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -270,6 +284,7 @@ contract CandidateDatabase is ICandidateDatabase {
                 name: name,
                 age: age,
                 gender: gender,
+                presentAddress: presentAddress,
                 email: email,
                 qualifications: qualifications,
                 manifesto: manifesto,
@@ -310,6 +325,7 @@ contract CandidateDatabase is ICandidateDatabase {
                 string memory name,
                 uint256 age,
                 Gender gender,
+                string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
@@ -320,6 +336,7 @@ contract CandidateDatabase is ICandidateDatabase {
                     name: name,
                     age: age,
                     gender: gender,
+                    presentAddress: presentAddress,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
@@ -369,6 +386,7 @@ contract CandidateDatabase is ICandidateDatabase {
                 string memory name,
                 uint256 age,
                 Gender gender,
+                string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
@@ -379,6 +397,7 @@ contract CandidateDatabase is ICandidateDatabase {
                     name: name,
                     age: age,
                     gender: gender,
+                    presentAddress: presentAddress,
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
@@ -471,6 +490,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @return name The name of the candidate
     /// @return age The age of the candidate
     /// @return gender The gender of the candidate
+    /// @return presentAddress The present address of the candidate
     /// @return email The email address of the candidate
     /// @return qualifications The qualifications of the candidate
     /// @return manifesto The election manifesto of the candidate
@@ -485,6 +505,7 @@ contract CandidateDatabase is ICandidateDatabase {
             string memory name,
             uint256 age,
             Gender gender,
+            string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -499,6 +520,7 @@ contract CandidateDatabase is ICandidateDatabase {
             candidate.name,
             candidate.age,
             candidate.gender,
+            candidate.presentAddress,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
@@ -521,6 +543,7 @@ contract CandidateDatabase is ICandidateDatabase {
     /// @return name Your name
     /// @return age Your age
     /// @return gender Your gender
+    /// @return presentAddress Your present address
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
@@ -534,6 +557,7 @@ contract CandidateDatabase is ICandidateDatabase {
             string memory name,
             uint256 age,
             Gender gender,
+            string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
@@ -545,6 +569,7 @@ contract CandidateDatabase is ICandidateDatabase {
             candidate.name,
             candidate.age,
             candidate.gender,
+            candidate.presentAddress,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
