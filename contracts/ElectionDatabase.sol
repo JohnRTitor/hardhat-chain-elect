@@ -46,6 +46,9 @@ error ElectionDatabase__ElectionClosed();
 /// @notice Thrown when the requested election does not exist
 error ElectionDatabase__ElectionNotFound();
 
+/// @notice Thrown when an election has no contestants/candidates enrolled
+error ElectionDatabase__ElectionHasNoContestant();
+
 /// @notice Thrown when an invalid address (0x0) is provided
 error ElectionDatabase__InvalidAddress();
 
@@ -423,10 +426,17 @@ contract ElectionDatabase {
 
     /// @notice Opens an election for voting
     /// @param _electionId ID of the election to open
+    /// @dev Election must have at least one candidate to be opened
     function openElection(
         uint256 _electionId
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
         Election storage election = s_elections[_electionId];
+
+        // Prevent opening elections with no candidates
+        if (election.candidates.length == 0) {
+            revert ElectionDatabase__ElectionHasNoContestant();
+        }
+
         election.isActive = true;
         emit ElectionOpened(_electionId, msg.sender);
     }
