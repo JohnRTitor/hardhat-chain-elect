@@ -1,12 +1,14 @@
-/// @title VoterDatabase Contract
-/// @author Masum Reza
-/// @notice This contract manages voter registration and voting status
-/// @notice Intended for use within an electronic voting machine/system
-/// @dev functions specifically prepended with admin may only be called by the contract owner
-/// @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
-
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.8;
+
+/**
+ * @title VoterDatabase Contract
+ * @author Masum Reza
+ * @notice This contract manages voter registration and voting status
+ * @notice Intended for use within an electronic voting machine/system
+ * @dev functions specifically prepended with admin may only be called by the contract owner
+ * @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
+ */
 
 import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
 

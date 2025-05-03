@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.8;
 
-/// @title ICandidateDatabase Interface
-/// @author Based on CandidateDatabase by Masum Reza
-/// @notice Interface for the CandidateDatabase contract
-/// @dev Defines the external functions for interaction with the CandidateDatabase contract
+/**
+ * @title ICandidateDatabase Interface
+ * @author Based on CandidateDatabase by Masum Reza
+ * @notice Interface for the CandidateDatabase contract
+ * @dev Defines the external functions for interaction with the CandidateDatabase contract
+ */
 
 interface ICandidateDatabase {
     /// @notice Enum representing gender

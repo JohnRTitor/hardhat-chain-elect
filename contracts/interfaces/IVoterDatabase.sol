@@ -1,10 +1,12 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.8;
 
-/// @title IVoterDatabase Interface
-/// @author Based on VoterDatabase by Masum Reza
-/// @notice Interface for the VoterDatabase contract
-/// @dev Defines the external functions for interaction with the VoterDatabase contract
+/**
+ * @title IVoterDatabase Interface
+ * @author Based on VoterDatabase by Masum Reza
+ * @notice Interface for the VoterDatabase contract
+ * @dev Defines the external functions for interaction with the VoterDatabase contract
+ */
 
 interface IVoterDatabase {
     /// @notice Enum representing gender
