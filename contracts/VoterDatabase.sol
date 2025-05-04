@@ -32,6 +32,9 @@ error VoterDatabase__ImportFailed();
 error VoterDatabase__InvalidAddress();
 
 contract VoterDatabase is IVoterDatabase, AdminManagement {
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint256 private constant MIN_ELIGIBLE_AGE = 18;
+
     /// @notice Stores details for a single voter
     struct Voter {
         string name;
@@ -59,14 +62,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
     function addVoter(
-        string memory _name,
+        string calldata _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress
+        string calldata _presentAddress
     ) external override {
-        // Calculate age - use 365 days which Solidity understands as seconds in a year
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert VoterDatabase__NotEligible();
+        // Calculate age using constant for seconds in a year
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         if (s_voters[msg.sender].isRegistered)
             revert VoterDatabase__AlreadyRegistered();
@@ -91,17 +94,17 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     function updateVoter(
-        string memory _name,
+        string calldata _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress
+        string calldata _presentAddress
     ) external override onlyRegistered {
         if (s_voters[msg.sender].hasVoted)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
         // Verify age eligibility with the new DOB
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert VoterDatabase__NotEligible();
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         Voter storage voter = s_voters[msg.sender];
         voter.name = _name;
@@ -120,13 +123,15 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         delete s_voters[voterAddress];
 
         // swap voter with last element and pop
-        for (uint256 i = 0; i < s_voterAddresses.length; i++) {
+        uint256 length = s_voterAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             if (s_voterAddresses[i] == voterAddress) {
-                s_voterAddresses[i] = s_voterAddresses[
-                    s_voterAddresses.length - 1
-                ];
+                s_voterAddresses[i] = s_voterAddresses[length - 1];
                 s_voterAddresses.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -163,8 +168,8 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             revert VoterDatabase__AlreadyRegistered();
 
         // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert VoterDatabase__NotEligible();
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         s_voters[_voterAddress] = Voter({
             name: _name,
@@ -201,8 +206,8 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             revert VoterDatabase__NotRegistered();
 
         // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert VoterDatabase__NotEligible();
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         Voter storage voter = s_voters[_voterAddress];
 
@@ -229,13 +234,15 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         delete s_voters[_voterAddress];
 
         // Remove from the address array using swap and pop
-        for (uint256 i = 0; i < s_voterAddresses.length; i++) {
+        uint256 length = s_voterAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             if (s_voterAddresses[i] == _voterAddress) {
-                s_voterAddresses[i] = s_voterAddresses[
-                    s_voterAddresses.length - 1
-                ];
+                s_voterAddresses[i] = s_voterAddresses[length - 1];
                 s_voterAddresses.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -281,8 +288,9 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 /* timeWhenRegisteredEpoch */
         ) {
             // Check age eligibility
-            uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-            if (age < 18) revert VoterDatabase__NotEligible();
+            uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                SECONDS_PER_YEAR;
+            if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
             // Add voter to this contract
             s_voters[_voterAddress] = Voter({
@@ -298,8 +306,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             s_voterAddresses.push(_voterAddress);
             emit VoterRegistered(_voterAddress);
 
-            uint256 importedCount = 1;
-            emit VotersImported(_sourceContract, importedCount);
+            emit VotersImported(_sourceContract, 1);
         } catch {
             revert VoterDatabase__ImportFailed();
         }
@@ -316,25 +323,35 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         IVoterDatabase source = IVoterDatabase(_sourceContract);
         uint256 importedCount = 0;
 
-        for (uint256 i = 0; i < _voterAddresses.length; i++) {
+        uint256 length = _voterAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             address voterAddress = _voterAddresses[i];
 
             // Skip if voter is already registered
             if (s_voters[voterAddress].isRegistered) {
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
             try source.adminGetVoterDetails(voterAddress) returns (
                 string memory name,
-                uint256 dateOfBirthEpoch, // Updated from dateOfBirth to dateOfBirthEpoch
+                uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
                 bool hasVoted,
                 uint256 /* timeWhenRegisteredEpoch */
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-                if (age < 18) continue; // Skip ineligible voters
+                uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                    SECONDS_PER_YEAR;
+                if (age < MIN_ELIGIBLE_AGE) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue; // Skip ineligible voters
+                }
 
                 // Add voter to this contract
                 s_voters[voterAddress] = Voter({
@@ -349,9 +366,15 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
                 s_voterAddresses.push(voterAddress);
                 emit VoterRegistered(voterAddress);
-                importedCount++;
+                unchecked {
+                    ++importedCount;
+                    ++i;
+                }
             } catch {
                 // Continue to next voter if this one fails
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
         }
@@ -377,11 +400,15 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
         uint256 importedCount = 0;
 
-        for (uint256 i = 0; i < voters.length; i++) {
+        uint256 length = voters.length;
+        for (uint256 i = 0; i < length; ) {
             address voterAddress = voters[i];
 
             // Skip if voter is already registered in this contract
             if (s_voters[voterAddress].isRegistered) {
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -394,8 +421,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 /* timeWhenRegisteredEpoch */
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-                if (age < 18) continue; // Skip ineligible voters
+                uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                    SECONDS_PER_YEAR;
+                if (age < MIN_ELIGIBLE_AGE) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue; // Skip ineligible voters
+                }
 
                 // Add voter to this contract
                 s_voters[voterAddress] = Voter({
@@ -410,9 +443,15 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
                 s_voterAddresses.push(voterAddress);
                 emit VoterRegistered(voterAddress);
-                importedCount++;
+                unchecked {
+                    ++importedCount;
+                    ++i;
+                }
             } catch {
                 // Continue to next voter if this one fails
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
         }
@@ -487,7 +526,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function calculateAge(
         uint256 _dateOfBirthEpoch
     ) public view returns (uint256) {
-        return (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
     }
 
     /// @notice Get your own voter details

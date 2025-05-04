@@ -60,7 +60,7 @@ abstract contract AdminManagement {
     /// @notice Add a new admin to the system
     /// @dev Only owner can call this function
     /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external onlyOwner {
+    function addAdmin(address _adminAddress) external virtual onlyOwner {
         if (_adminAddress == address(0))
             revert AdminManagement__InvalidAddress();
         if (s_admins[_adminAddress]) revert AdminManagement__AlreadyAdmin();
@@ -74,20 +74,22 @@ abstract contract AdminManagement {
     /// @notice Remove an admin from the system
     /// @dev Only owner can call this function
     /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external onlyOwner {
+    function removeAdmin(address _adminAddress) external virtual onlyOwner {
         if (!s_admins[_adminAddress]) revert AdminManagement__AdminNotFound();
 
         // Remove admin from mapping
         delete s_admins[_adminAddress];
 
         // Remove from the admin array using swap and pop
-        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
+        uint256 arrayLength = s_adminAddresses.length;
+        for (uint256 i = 0; i < arrayLength; ) {
             if (s_adminAddresses[i] == _adminAddress) {
-                s_adminAddresses[i] = s_adminAddresses[
-                    s_adminAddresses.length - 1
-                ];
+                s_adminAddresses[i] = s_adminAddresses[arrayLength - 1];
                 s_adminAddresses.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 

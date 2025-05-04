@@ -28,6 +28,9 @@ error CandidateDatabase__ImportFailed();
 error CandidateDatabase__InvalidAddress();
 
 contract CandidateDatabase is ICandidateDatabase, AdminManagement {
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint256 private constant MIN_ELIGIBLE_AGE = 18;
+
     /// @notice Stores details for a single candidate
     struct Candidate {
         string name;
@@ -60,17 +63,17 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @param _qualifications Educational qualifications of the candidate
     /// @param _manifesto Election manifesto of the candidate
     function addCandidate(
-        string memory _name,
+        string calldata _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress,
-        string memory _email,
-        string memory _qualifications,
-        string memory _manifesto
+        string calldata _presentAddress,
+        string calldata _email,
+        string calldata _qualifications,
+        string calldata _manifesto
     ) external override {
-        // Calculate age - use 365 days which Solidity understands as seconds in a year
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert CandidateDatabase__NotEligible();
+        // Calculate age - use constant for seconds in a year
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
         if (s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
@@ -100,17 +103,17 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
     function updateCandidate(
-        string memory _name,
+        string calldata _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress,
-        string memory _email,
-        string memory _qualifications,
-        string memory _manifesto
+        string calldata _presentAddress,
+        string calldata _email,
+        string calldata _qualifications,
+        string calldata _manifesto
     ) external override onlyRegistered {
         // Verify age eligibility with the new DOB
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert CandidateDatabase__NotEligible();
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
         Candidate storage candidate = s_candidates[msg.sender];
         candidate.name = _name;
@@ -132,13 +135,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         delete s_candidates[candidateAddress];
 
         // swap candidate with last element and pop
-        for (uint256 i = 0; i < s_candidateAddresses.length; i++) {
+        uint256 length = s_candidateAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             if (s_candidateAddresses[i] == candidateAddress) {
-                s_candidateAddresses[i] = s_candidateAddresses[
-                    s_candidateAddresses.length - 1
-                ];
+                s_candidateAddresses[i] = s_candidateAddresses[length - 1];
                 s_candidateAddresses.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -168,9 +173,9 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         if (_candidateAddress == address(0))
             revert CandidateDatabase__InvalidAddress();
 
-        // Calculate age - use 365 days which Solidity understands as seconds in a year
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert CandidateDatabase__NotEligible();
+        // Calculate age using constant
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
         if (s_candidates[_candidateAddress].isRegistered)
             revert CandidateDatabase__AlreadyRegistered();
@@ -215,8 +220,8 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             revert CandidateDatabase__NotRegistered();
 
         // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / 365 days;
-        if (age < 18) revert CandidateDatabase__NotEligible();
+        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
         Candidate storage candidate = s_candidates[_candidateAddress];
 
@@ -246,13 +251,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         delete s_candidates[_candidateAddress];
 
         // Remove from the address array using swap and pop
-        for (uint256 i = 0; i < s_candidateAddresses.length; i++) {
+        uint256 length = s_candidateAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             if (s_candidateAddresses[i] == _candidateAddress) {
-                s_candidateAddresses[i] = s_candidateAddresses[
-                    s_candidateAddresses.length - 1
-                ];
+                s_candidateAddresses[i] = s_candidateAddresses[length - 1];
                 s_candidateAddresses.pop();
                 break;
+            }
+            unchecked {
+                ++i;
             }
         }
 
@@ -285,8 +292,9 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             uint256 timeWhenRegisteredEpoch
         ) {
             // Check age eligibility
-            uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-            if (age < 18) revert CandidateDatabase__NotEligible();
+            uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                SECONDS_PER_YEAR;
+            if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
             // Add candidate to this contract
             s_candidates[_candidateAddress] = Candidate({
@@ -304,8 +312,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             s_candidateAddresses.push(_candidateAddress);
             emit CandidateRegistered(_candidateAddress);
 
-            uint256 importedCount = 1;
-            emit CandidatesImported(_sourceContract, importedCount);
+            emit CandidatesImported(_sourceContract, 1);
         } catch {
             revert CandidateDatabase__ImportFailed();
         }
@@ -322,11 +329,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         ICandidateDatabase source = ICandidateDatabase(_sourceContract);
         uint256 importedCount = 0;
 
-        for (uint256 i = 0; i < _candidateAddresses.length; i++) {
+        uint256 length = _candidateAddresses.length;
+        for (uint256 i = 0; i < length; ) {
             address candidateAddress = _candidateAddresses[i];
 
             // Skip if candidate is already registered
             if (s_candidates[candidateAddress].isRegistered) {
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -341,8 +352,14 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                 uint256 timeWhenRegisteredEpoch
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-                if (age < 18) continue; // Skip ineligible candidates
+                uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                    SECONDS_PER_YEAR;
+                if (age < MIN_ELIGIBLE_AGE) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue; // Skip ineligible candidates
+                }
 
                 // Add candidate to this contract
                 s_candidates[candidateAddress] = Candidate({
@@ -359,9 +376,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
 
                 s_candidateAddresses.push(candidateAddress);
                 emit CandidateRegistered(candidateAddress);
-                importedCount++;
+                unchecked {
+                    ++importedCount;
+                    ++i;
+                }
             } catch {
                 // Continue to next candidate if this one fails
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
         }
@@ -387,11 +410,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
 
         uint256 importedCount = 0;
 
-        for (uint256 i = 0; i < candidates.length; i++) {
+        uint256 length = candidates.length;
+        for (uint256 i = 0; i < length; ) {
             address candidateAddress = candidates[i];
 
             // Skip if candidate is already registered in this contract
             if (s_candidates[candidateAddress].isRegistered) {
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -406,8 +433,14 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                 uint256 timeWhenRegisteredEpoch
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) / 365 days;
-                if (age < 18) continue; // Skip ineligible candidates
+                uint256 age = (block.timestamp - dateOfBirthEpoch) /
+                    SECONDS_PER_YEAR;
+                if (age < MIN_ELIGIBLE_AGE) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue; // Skip ineligible candidates
+                }
 
                 // Add candidate to this contract
                 s_candidates[candidateAddress] = Candidate({
@@ -424,9 +457,15 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
 
                 s_candidateAddresses.push(candidateAddress);
                 emit CandidateRegistered(candidateAddress);
-                importedCount++;
+                unchecked {
+                    ++importedCount;
+                    ++i;
+                }
             } catch {
                 // Continue to next candidate if this one fails
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
         }
@@ -440,7 +479,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function calculateAge(
         uint256 _dateOfBirthEpoch
     ) public view returns (uint256) {
-        return (block.timestamp - _dateOfBirthEpoch) / 365 days;
+        return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
     }
 
     /// @notice Get details of a specific candidate (publicly accessible)

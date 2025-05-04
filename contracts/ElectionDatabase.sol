@@ -175,11 +175,10 @@ contract ElectionDatabase is AdminManagement {
     /// @notice Creates a new election with given name and description
     /// @param _name Name of the election
     /// @param _description Description of the election
-    /// @return The ID of the newly created election
     function createElection(
-        string memory _name,
-        string memory _description
-    ) external onlyAdmin returns (uint256) {
+        string calldata _name,
+        string calldata _description
+    ) external onlyAdmin {
         uint256 electionId = s_electionCounter;
 
         Election storage newElection = s_elections[electionId];
@@ -194,7 +193,6 @@ contract ElectionDatabase is AdminManagement {
         s_electionCounter++;
 
         emit ElectionCreated(electionId, _name, msg.sender);
-        return electionId;
     }
 
     /// @notice Updates an existing election's details
@@ -203,8 +201,8 @@ contract ElectionDatabase is AdminManagement {
     /// @param _description New description for the election
     function updateElection(
         uint256 _electionId,
-        string memory _name,
-        string memory _description
+        string calldata _name,
+        string calldata _description
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
         Election storage election = s_elections[_electionId];
 
@@ -525,16 +523,15 @@ contract ElectionDatabase is AdminManagement {
     }
 
     /// @notice Check who a voter voted for in a specific election
-    /// TODO: investigate whether this information is even viewable by s_admins
-    /// This should ideally be only viewable by voters themselves
+    /// @notice only viewable by voters themselves
     function getVoterChoice(
         uint256 _electionId,
         address _voter
     )
         external
         view
-        onlyAdmin
         onlyRegisteredElection(_electionId)
+        onlyRegisteredVoter
         returns (address)
     {
         if (s_elections[_electionId].voterToVoteTimestamp[_voter] == 0) {
