@@ -313,7 +313,7 @@ describe("VoterDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert with zero address", async function () {
@@ -373,7 +373,7 @@ describe("VoterDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -475,7 +475,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.adminRemoveVoter([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -556,7 +556,7 @@ describe("VoterDatabase Unit Tests", function () {
             [otherAccount.account.address, true],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert if voter not registered", async function () {
@@ -769,13 +769,13 @@ describe("VoterDatabase Unit Tests", function () {
             voterDatabase.read.adminGetAllVoters({
               account: otherAccount.account,
             })
-          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+          ).to.be.rejectedWith("AdminManagement__NotAdmin");
 
           await expect(
             voterDatabase.read.adminGetVoterCount({
               account: otherAccount.account,
             })
-          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+          ).to.be.rejectedWith("AdminManagement__NotAdmin");
         });
 
         it("should return empty array when no voters registered", async function () {
@@ -887,7 +887,7 @@ describe("VoterDatabase Unit Tests", function () {
               [otherAccount.account.address],
               { account: otherAccount.account }
             )
-          ).to.be.rejectedWith("VoterDatabase__NotAdmin");
+          ).to.be.rejectedWith("AdminManagement__NotAdmin");
         });
 
         it("should revert if voter not registered", async function () {
@@ -938,7 +938,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.addAdmin([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("AdminManagement__NotOwner");
       });
 
       it("should revert with zero address", async function () {
@@ -947,7 +947,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.addAdmin([
             "0x0000000000000000000000000000000000000000",
           ])
-        ).to.be.rejectedWith("VoterDatabase__InvalidAddress");
+        ).to.be.rejectedWith("AdminManagement__InvalidAddress");
       });
 
       it("should revert if address is already an admin", async function () {
@@ -961,7 +961,7 @@ describe("VoterDatabase Unit Tests", function () {
 
         await expect(
           voterDatabase.write.addAdmin([otherAccount.account.address])
-        ).to.be.rejectedWith("VoterDatabase__AlreadyAdmin");
+        ).to.be.rejectedWith("AdminManagement__AlreadyAdmin");
       });
 
       it("should emit AdminAdded on success", async function () {
@@ -997,7 +997,7 @@ describe("VoterDatabase Unit Tests", function () {
           voterDatabase.write.removeAdmin([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("VoterDatabase__NotOwner");
+        ).to.be.rejectedWith("AdminManagement__NotOwner");
       });
 
       it("should revert if address is not an admin", async function () {
@@ -1006,7 +1006,7 @@ describe("VoterDatabase Unit Tests", function () {
         );
         await expect(
           voterDatabase.write.removeAdmin([otherAccount.account.address])
-        ).to.be.rejectedWith("VoterDatabase__AdminNotFound");
+        ).to.be.rejectedWith("AdminManagement__AdminNotFound");
       });
 
       it("should emit AdminRemoved on success", async function () {

@@ -56,16 +56,6 @@ interface ICandidateDatabase {
         address indexed admin
     );
 
-    /// @notice Emitted when a new admin is added
-    /// @param admin The address of the newly added admin
-    /// @param owner The address that added the admin (owner)
-    event AdminAdded(address indexed admin, address indexed owner);
-
-    /// @notice Emitted when an admin is removed
-    /// @param admin The address of the removed admin
-    /// @param owner The address that removed the admin (owner)
-    event AdminRemoved(address indexed admin, address indexed owner);
-
     /// @notice Register yourself as a candidate
     /// @param _name Candidate's full name
     /// @param _dateOfBirthEpoch Candidate's date of birth as Unix timestamp
@@ -168,35 +158,6 @@ interface ICandidateDatabase {
     /// @notice Import all candidates from another CandidateDatabase contract
     /// @param _sourceContract The address of the source CandidateDatabase contract
     function adminImportAllCandidates(address _sourceContract) external;
-
-    /// @notice Add a new admin to the system
-    /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external;
-
-    /// @notice Remove an admin from the system
-    /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external;
-
-    /// @notice Check if an address is an admin
-    /// @param _address Address to check
-    /// @return True if the address is an admin, false otherwise
-    function isAdmin(address _address) external view returns (bool);
-
-    /// @notice Get the total number of admins (excluding owner)
-    /// @return The count of admins
-    function getAdminCount() external view returns (uint256);
-
-    /// @notice Get addresses of all admins (excluding owner)
-    /// @return Array of admin addresses
-    function getAllAdmins() external view returns (address[] memory);
-
-    /// @notice Get the contract owner address
-    /// @return The address of the contract owner
-    function getOwner() external view returns (address);
-
-    /// @notice Check if the caller is an admin
-    /// @return True if the caller is an admin, false otherwise
-    function amIAdmin() external view returns (bool);
 
     /// @notice Get full details of a specific candidate
     /// @param _candidateAddress Address of the candidate

@@ -312,7 +312,7 @@ describe("CandidateDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert with zero address", async function () {
@@ -377,7 +377,7 @@ describe("CandidateDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert if candidate not registered", async function () {
@@ -491,7 +491,7 @@ describe("CandidateDatabase Unit Tests", function () {
             [otherAccount.account.address],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert if candidate not registered", async function () {
@@ -551,7 +551,7 @@ describe("CandidateDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert adminBatchImportCandidates if called by non-admin", async function () {
@@ -566,7 +566,7 @@ describe("CandidateDatabase Unit Tests", function () {
             ],
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
       it("should revert adminImportAllCandidates if called by non-admin", async function () {
@@ -578,7 +578,7 @@ describe("CandidateDatabase Unit Tests", function () {
             [thirdAccount.account.address], // Using as mock source contract
             { account: otherAccount.account }
           )
-        ).to.be.rejectedWith("CandidateDatabase__NotAdmin");
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
     });
   });
@@ -593,7 +593,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.addAdmin([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("CandidateDatabase__NotOwner");
+        ).to.be.rejectedWith("AdminManagement__NotOwner");
       });
 
       it("should revert with zero address", async function () {
@@ -604,7 +604,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.addAdmin([
             "0x0000000000000000000000000000000000000000",
           ])
-        ).to.be.rejectedWith("CandidateDatabase__InvalidAddress");
+        ).to.be.rejectedWith("AdminManagement__InvalidAddress");
       });
 
       it("should revert if address is already an admin", async function () {
@@ -617,7 +617,7 @@ describe("CandidateDatabase Unit Tests", function () {
 
         await expect(
           candidateDatabase.write.addAdmin([otherAccount.account.address])
-        ).to.be.rejectedWith("CandidateDatabase__AlreadyAdmin");
+        ).to.be.rejectedWith("AdminManagement__AlreadyAdmin");
       });
 
       it("should emit AdminAdded on success", async function () {
@@ -652,7 +652,7 @@ describe("CandidateDatabase Unit Tests", function () {
           candidateDatabase.write.removeAdmin([otherAccount.account.address], {
             account: otherAccount.account,
           })
-        ).to.be.rejectedWith("CandidateDatabase__NotOwner");
+        ).to.be.rejectedWith("AdminManagement__NotOwner");
       });
 
       it("should revert if address is not an admin", async function () {
@@ -661,7 +661,7 @@ describe("CandidateDatabase Unit Tests", function () {
         );
         await expect(
           candidateDatabase.write.removeAdmin([otherAccount.account.address])
-        ).to.be.rejectedWith("CandidateDatabase__AdminNotFound");
+        ).to.be.rejectedWith("AdminManagement__AdminNotFound");
       });
 
       it("should emit AdminRemoved on success", async function () {

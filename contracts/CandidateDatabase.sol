@@ -2,6 +2,7 @@
 pragma solidity ^0.8.8;
 
 import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
+import {AdminManagement} from "./shared/AdminManagement.sol";
 
 /**
  * @title CandidateDatabase Contract
@@ -13,9 +14,6 @@ import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
 
 /// @notice Thrown when a candidate under the age of 18 tries to register
 error CandidateDatabase__NotEligible();
-
-/// @notice Thrown when a non-owner attempts to perform an owner-only action
-error CandidateDatabase__NotOwner();
 
 /// @notice Thrown when a candidate attempts to register again after already being registered
 error CandidateDatabase__AlreadyRegistered();
@@ -29,16 +27,7 @@ error CandidateDatabase__ImportFailed();
 /// @notice Thrown when an invalid address is provided
 error CandidateDatabase__InvalidAddress();
 
-/// @notice Thrown when a non-admin tries to access admin functionality
-error CandidateDatabase__NotAdmin();
-
-/// @notice Thrown when trying to add an address that's already an admin
-error CandidateDatabase__AlreadyAdmin();
-
-/// @notice Thrown when trying to remove an address that's not an admin
-error CandidateDatabase__AdminNotFound();
-
-contract CandidateDatabase is ICandidateDatabase {
+contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @notice Stores details for a single candidate
     struct Candidate {
         string name;
@@ -52,37 +41,14 @@ contract CandidateDatabase is ICandidateDatabase {
         bool isRegistered;
     }
 
-    address private immutable i_owner;
     mapping(address => Candidate) private s_candidates;
     address[] private s_candidateAddresses;
-
-    // Admin system
-    mapping(address => bool) private s_admins;
-    address[] private s_adminAddresses;
 
     /// @notice Functions with this modifier can only be called by registered candidates
     modifier onlyRegistered() {
         if (!s_candidates[msg.sender].isRegistered)
             revert CandidateDatabase__NotRegistered();
         _;
-    }
-
-    /// @notice Restricts function access to the owner/election manager
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert CandidateDatabase__NotOwner();
-        _;
-    }
-
-    /// @notice Restricts function access to admins (including the owner)
-    modifier onlyAdmin() {
-        if (msg.sender != i_owner && !s_admins[msg.sender])
-            revert CandidateDatabase__NotAdmin();
-        _;
-    }
-
-    /// @notice Contract constructor, sets the deployer as the owner
-    constructor() {
-        i_owner = msg.sender;
     }
 
     /// @notice Register a new candidate
@@ -468,43 +434,6 @@ contract CandidateDatabase is ICandidateDatabase {
         emit CandidatesImported(_sourceContract, importedCount);
     }
 
-    /// @notice Add a new admin to the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external override onlyOwner {
-        if (_adminAddress == address(0))
-            revert CandidateDatabase__InvalidAddress();
-        if (s_admins[_adminAddress]) revert CandidateDatabase__AlreadyAdmin();
-
-        s_admins[_adminAddress] = true;
-        s_adminAddresses.push(_adminAddress);
-
-        emit AdminAdded(_adminAddress, msg.sender);
-    }
-
-    /// @notice Remove an admin from the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external override onlyOwner {
-        if (!s_admins[_adminAddress]) revert CandidateDatabase__AdminNotFound();
-
-        // Remove admin from mapping
-        delete s_admins[_adminAddress];
-
-        // Remove from the admin array using swap and pop
-        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
-            if (s_adminAddresses[i] == _adminAddress) {
-                s_adminAddresses[i] = s_adminAddresses[
-                    s_adminAddresses.length - 1
-                ];
-                s_adminAddresses.pop();
-                break;
-            }
-        }
-
-        emit AdminRemoved(_adminAddress, msg.sender);
-    }
-
     /// @notice Calculate age from date of birth
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @return Age in years
@@ -512,37 +441,6 @@ contract CandidateDatabase is ICandidateDatabase {
         uint256 _dateOfBirthEpoch
     ) public view returns (uint256) {
         return (block.timestamp - _dateOfBirthEpoch) / 365 days;
-    }
-
-    /// @notice Check if an address is an admin
-    /// @param _address Address to check
-    /// @return True if the address is an admin, false otherwise
-    function isAdmin(address _address) public view override returns (bool) {
-        return _address == i_owner || s_admins[_address];
-    }
-
-    /// @notice Get the total number of admins (excluding owner)
-    /// @return The count of admins
-    function getAdminCount() public view override returns (uint256) {
-        return s_adminAddresses.length;
-    }
-
-    /// @notice Get addresses of all admins (excluding owner)
-    /// @return Array of admin addresses
-    function getAllAdmins() public view override returns (address[] memory) {
-        return s_adminAddresses;
-    }
-
-    /// @notice Get the contract owner address
-    /// @return The address of the contract owner
-    function getOwner() public view override returns (address) {
-        return i_owner;
-    }
-
-    /// @notice Check if the caller is an admin
-    /// @return True if the caller is an admin, false otherwise
-    function amIAdmin() public view override returns (bool) {
-        return isAdmin(msg.sender);
     }
 
     /// @notice Get details of a specific candidate (publicly accessible)

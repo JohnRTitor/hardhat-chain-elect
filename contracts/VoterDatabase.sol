@@ -11,6 +11,7 @@ pragma solidity ^0.8.8;
  */
 
 import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
+import {AdminManagement} from "./shared/AdminManagement.sol";
 
 /// @notice Thrown when a user under the age of 18 attempts to register
 error VoterDatabase__NotEligible();
@@ -21,9 +22,6 @@ error VoterDatabase__NotRegistered();
 /// @notice Thrown when a user tries to register again
 error VoterDatabase__AlreadyRegistered();
 
-/// @notice Thrown when a non-owner tries to access restricted functionality
-error VoterDatabase__NotOwner();
-
 /// @notice Thrown when a voter attempts to update info after voting
 error VoterDatabase__CannotUpdateAfterVoting();
 
@@ -33,16 +31,7 @@ error VoterDatabase__ImportFailed();
 /// @notice Thrown when an invalid address is provided
 error VoterDatabase__InvalidAddress();
 
-/// @notice Thrown when a non-admin tries to access admin functionality
-error VoterDatabase__NotAdmin();
-
-/// @notice Thrown when trying to add an address that's already an admin
-error VoterDatabase__AlreadyAdmin();
-
-/// @notice Thrown when trying to remove an address that's not an admin
-error VoterDatabase__AdminNotFound();
-
-contract VoterDatabase is IVoterDatabase {
+contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Stores details for a single voter
     struct Voter {
         string name;
@@ -54,37 +43,14 @@ contract VoterDatabase is IVoterDatabase {
         uint256 timeWhenRegisteredEpoch;
     }
 
-    address private immutable i_owner;
     mapping(address => Voter) private s_voters;
     address[] private s_voterAddresses;
-
-    // Admin system
-    mapping(address => bool) private s_admins;
-    address[] private s_adminAddresses;
 
     /// @notice Functions with this modifier can only be called by registered voters
     modifier onlyRegistered() {
         if (!s_voters[msg.sender].isRegistered)
             revert VoterDatabase__NotRegistered();
         _;
-    }
-
-    /// @notice Restricts function access to the owner/election manager
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert VoterDatabase__NotOwner();
-        _;
-    }
-
-    /// @notice Restricts function access to admins (including the owner)
-    modifier onlyAdmin() {
-        if (msg.sender != i_owner && !s_admins[msg.sender])
-            revert VoterDatabase__NotAdmin();
-        _;
-    }
-
-    /// @notice Contract constructor, sets the deployer as the owner
-    constructor() {
-        i_owner = msg.sender;
     }
 
     /// @notice Register a new voter
@@ -515,42 +481,6 @@ contract VoterDatabase is IVoterDatabase {
         return s_voterAddresses;
     }
 
-    /// @notice Add a new admin to the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external override onlyOwner {
-        if (_adminAddress == address(0)) revert VoterDatabase__InvalidAddress();
-        if (s_admins[_adminAddress]) revert VoterDatabase__AlreadyAdmin();
-
-        s_admins[_adminAddress] = true;
-        s_adminAddresses.push(_adminAddress);
-
-        emit AdminAdded(_adminAddress, msg.sender);
-    }
-
-    /// @notice Remove an admin from the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external override onlyOwner {
-        if (!s_admins[_adminAddress]) revert VoterDatabase__AdminNotFound();
-
-        // Remove admin from mapping
-        delete s_admins[_adminAddress];
-
-        // Remove from the admin array using swap and pop
-        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
-            if (s_adminAddresses[i] == _adminAddress) {
-                s_adminAddresses[i] = s_adminAddresses[
-                    s_adminAddresses.length - 1
-                ];
-                s_adminAddresses.pop();
-                break;
-            }
-        }
-
-        emit AdminRemoved(_adminAddress, msg.sender);
-    }
-
     /// @notice Calculate age from date of birth
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @return Age in years
@@ -558,37 +488,6 @@ contract VoterDatabase is IVoterDatabase {
         uint256 _dateOfBirthEpoch
     ) public view returns (uint256) {
         return (block.timestamp - _dateOfBirthEpoch) / 365 days;
-    }
-
-    /// @notice Check if an address is an admin
-    /// @param _address Address to check
-    /// @return True if the address is an admin, false otherwise
-    function isAdmin(address _address) public view override returns (bool) {
-        return _address == i_owner || s_admins[_address];
-    }
-
-    /// @notice Get the total number of admins (excluding owner)
-    /// @return The count of admins
-    function getAdminCount() public view override returns (uint256) {
-        return s_adminAddresses.length;
-    }
-
-    /// @notice Get addresses of all admins (excluding owner)
-    /// @return Array of admin addresses
-    function getAllAdmins() public view override returns (address[] memory) {
-        return s_adminAddresses;
-    }
-
-    /// @notice Get the contract owner address
-    /// @return The address of the contract owner
-    function getOwner() public view override returns (address) {
-        return i_owner;
-    }
-
-    /// @notice Check if the caller is an admin
-    /// @return True if the caller is an admin, false otherwise
-    function amIAdmin() public view override returns (bool) {
-        return isAdmin(msg.sender);
     }
 
     /// @notice Get your own voter details

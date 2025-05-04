@@ -11,12 +11,7 @@ pragma solidity ^0.8.8;
 
 import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
 import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
-
-/// @notice Thrown when a non-owner attempts to perform an owner-only action
-error ElectionDatabase__NotOwner();
-
-/// @notice Thrown when a non-admin tries to access admin functionality
-error ElectionDatabase__NotAdmin();
+import {AdminManagement} from "./shared/AdminManagement.sol";
 
 /// @notice Thrown when a voter is not registered in the voter database
 error ElectionDatabase__VoterNotRegistered();
@@ -29,12 +24,6 @@ error ElectionDatabase__CandidateNotRegistered();
 
 /// @notice Thrown when a candidate is already registered in the election
 error ElectionDatabase__CandidateAlreadyEnrolled();
-
-/// @notice Thrown when trying to add an address that's already an admin
-error ElectionDatabase__AlreadyAdmin();
-
-/// @notice Thrown when trying to remove an address that's not an admin
-error ElectionDatabase__AdminNotFound();
 
 /// @notice Thrown when a restricted action is attempted during an active election
 /// @notice like enrolling/withdrawing a candidate
@@ -52,7 +41,7 @@ error ElectionDatabase__ElectionHasNoContestant();
 /// @notice Thrown when an invalid address (0x0) is provided
 error ElectionDatabase__InvalidAddress();
 
-contract ElectionDatabase {
+contract ElectionDatabase is AdminManagement {
     struct Election {
         string name;
         string description;
@@ -72,17 +61,12 @@ contract ElectionDatabase {
         uint256 createdTimestamp;
     }
 
-    address private immutable i_owner;
     IVoterDatabase private immutable s_voterDB;
     ICandidateDatabase private immutable s_candidateDB;
 
     uint256 private s_electionCounter;
     mapping(uint256 => Election) private s_elections;
     uint256[] private s_electionIds;
-
-    // Admin system
-    mapping(address => bool) private s_admins;
-    address[] private s_adminAddresses;
 
     /// @notice Emitted when a new election is created
     event ElectionCreated(
@@ -144,23 +128,6 @@ contract ElectionDatabase {
     /// @notice Emitted when an election is closed
     event ElectionClosed(uint256 indexed electionId, address indexed admin);
 
-    /// @notice Emitted when an admin is added
-    event AdminAdded(address indexed admin, address indexed owner);
-
-    /// @notice Emitted when an admin is removed
-    event AdminRemoved(address indexed admin, address indexed owner);
-
-    modifier onlyOwner() {
-        if (msg.sender != i_owner) revert ElectionDatabase__NotOwner();
-        _;
-    }
-
-    modifier onlyAdmin() {
-        if (msg.sender != i_owner && !s_admins[msg.sender])
-            revert ElectionDatabase__NotAdmin();
-        _;
-    }
-
     modifier onlyRegisteredElection(uint256 _electionId) {
         if (!s_elections[_electionId].isRegistered)
             revert ElectionDatabase__ElectionNotFound();
@@ -200,7 +167,6 @@ contract ElectionDatabase {
         if (_voterDBAddress == address(0) || _candidateDBAddress == address(0))
             revert ElectionDatabase__InvalidAddress();
 
-        i_owner = msg.sender;
         s_voterDB = IVoterDatabase(_voterDBAddress);
         s_candidateDB = ICandidateDatabase(_candidateDBAddress);
         s_electionCounter = 0;
@@ -451,43 +417,6 @@ contract ElectionDatabase {
         emit ElectionClosed(_electionId, msg.sender);
     }
 
-    /// @notice Add a new admin to the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be added as admin
-    function addAdmin(address _adminAddress) external onlyOwner {
-        if (_adminAddress == address(0))
-            revert ElectionDatabase__InvalidAddress();
-        if (s_admins[_adminAddress]) revert ElectionDatabase__AlreadyAdmin();
-
-        s_admins[_adminAddress] = true;
-        s_adminAddresses.push(_adminAddress);
-
-        emit AdminAdded(_adminAddress, msg.sender);
-    }
-
-    /// @notice Remove an admin from the system
-    /// @dev Only owner can call this function
-    /// @param _adminAddress Address to be removed from admin role
-    function removeAdmin(address _adminAddress) external onlyOwner {
-        if (!s_admins[_adminAddress]) revert ElectionDatabase__AdminNotFound();
-
-        // Remove admin from mapping
-        delete s_admins[_adminAddress];
-
-        // Remove from the admin array using swap and pop
-        for (uint256 i = 0; i < s_adminAddresses.length; i++) {
-            if (s_adminAddresses[i] == _adminAddress) {
-                s_adminAddresses[i] = s_adminAddresses[
-                    s_adminAddresses.length - 1
-                ];
-                s_adminAddresses.pop();
-                break;
-            }
-        }
-
-        emit AdminRemoved(_adminAddress, msg.sender);
-    }
-
     /// @notice Returns the vote count of a candidate in a specific election
     function getVotesOfCandidate(
         uint256 _electionId,
@@ -612,31 +541,6 @@ contract ElectionDatabase {
             return address(0); // Voter hasn't voted
         }
         return s_elections[_electionId].voterToChosenCandidate[_voter];
-    }
-
-    /// @notice Check if an address is an admin
-    function isAdmin(address _address) public view returns (bool) {
-        return _address == i_owner || s_admins[_address];
-    }
-
-    /// @notice Get the total number of admins (excluding owner)
-    function getAdminCount() public view returns (uint256) {
-        return s_adminAddresses.length;
-    }
-
-    /// @notice Get addresses of all admins (excluding owner)
-    function getAllAdmins() public view returns (address[] memory) {
-        return s_adminAddresses;
-    }
-
-    /// @notice Get the contract owner address
-    function getOwner() public view returns (address) {
-        return i_owner;
-    }
-
-    /// @notice Check if the caller is an admin
-    function amIAdmin() public view returns (bool) {
-        return isAdmin(msg.sender);
     }
 
     /// @notice Returns the voting and candidate databases being used
