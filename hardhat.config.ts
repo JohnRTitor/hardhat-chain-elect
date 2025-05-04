@@ -37,6 +37,16 @@ const config: HardhatUserConfig = {
 
   solidity: {
     version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        // optimise the contract for this many runs
+        runs: 200,
+      },
+      // viaIR creates an intermediate representation and then optimises it
+      // then creates the bytecode, however this is buggy for this project
+      // viaIR: true,
+    },
   },
   mocha: {
     timeout: 200000, // 200 seconds max for running tests
