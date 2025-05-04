@@ -17,7 +17,7 @@ async function main() {
     const { voterDatabase } = await hre.ignition.deploy(VoterDatabaseModule);
     console.log(`VoterDatabase deployed to: ${voterDatabase.address}`);
 
-    // waiting five seconds before deploying CandidateDatabase
+    console.log("waiting five seconds before deploying CandidateDatabase");
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const { candidateDatabase } = await hre.ignition.deploy(
@@ -25,7 +25,7 @@ async function main() {
     );
     console.log(`CandidateDatabase deployed to: ${candidateDatabase.address}`);
 
-    // waiting five seconds before deploying ElectionDatabase
+    console.log(`Waiting five seconds before deploying ElectionDatabase`);
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     voterDatabaseAddress = voterDatabase.address;
@@ -45,8 +45,8 @@ async function main() {
       {
         parameters: {
           ElectionDatabaseModule: {
-            voterDatabaseAddress,
-            candidateDatabaseAddress,
+            voterDatabase: voterDatabaseAddress,
+            candidateDatabase: candidateDatabaseAddress,
           },
         },
       }
@@ -66,8 +66,9 @@ async function main() {
     hre.network.config.chainId === sepolia.id &&
     process.env.ETHERSCAN_API_KEY
   ) {
-    // waiting ten seconds before verifying
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    console.log("Waiting ten seconds before verifying");
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+
     await verifyContract(voterDatabaseAddress, []);
     await verifyContract(candidateDatabaseAddress, []);
     await verifyContract(electionDatabaseAddress, [
