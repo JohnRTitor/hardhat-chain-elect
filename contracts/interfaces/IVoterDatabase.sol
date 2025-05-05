@@ -68,10 +68,10 @@ interface IVoterDatabase {
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
     function addVoter(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress
+        string memory _presentAddress
     ) external;
 
     /// @notice Update voter information (only if registered and not yet voted)
@@ -80,10 +80,10 @@ interface IVoterDatabase {
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     function updateVoter(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress
+        string memory _presentAddress
     ) external;
 
     /// @notice Allows a registered voter to delete their own registration

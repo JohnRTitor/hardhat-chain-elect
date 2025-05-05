@@ -62,10 +62,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
     function addVoter(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress
+        string memory _presentAddress
     ) external override {
         // Calculate age using constant for seconds in a year
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
@@ -94,10 +94,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
     function updateVoter(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress
+        string memory _presentAddress
     ) external override onlyRegistered {
         if (s_voters[msg.sender].hasVoted)
             revert VoterDatabase__CannotUpdateAfterVoting();

@@ -65,13 +65,13 @@ interface ICandidateDatabase {
     /// @param _qualifications Candidate's educational qualifications
     /// @param _manifesto Candidate's election manifesto or platform
     function addCandidate(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress,
-        string calldata _email,
-        string calldata _qualifications,
-        string calldata _manifesto
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
     ) external;
 
     /// @notice Update your candidate profile
@@ -83,13 +83,13 @@ interface ICandidateDatabase {
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
     function updateCandidate(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress,
-        string calldata _email,
-        string calldata _qualifications,
-        string calldata _manifesto
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
     ) external;
 
     /// @notice Allows a registered candidate to delete their own registration

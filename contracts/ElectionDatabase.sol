@@ -176,8 +176,8 @@ contract ElectionDatabase is AdminManagement {
     /// @param _name Name of the election
     /// @param _description Description of the election
     function createElection(
-        string calldata _name,
-        string calldata _description
+        string memory _name,
+        string memory _description
     ) external onlyAdmin {
         uint256 electionId = s_electionCounter;
 
@@ -201,8 +201,8 @@ contract ElectionDatabase is AdminManagement {
     /// @param _description New description for the election
     function updateElection(
         uint256 _electionId,
-        string calldata _name,
-        string calldata _description
+        string memory _name,
+        string memory _description
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
         Election storage election = s_elections[_electionId];
 

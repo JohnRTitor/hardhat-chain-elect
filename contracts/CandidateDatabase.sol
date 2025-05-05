@@ -63,13 +63,13 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @param _qualifications Educational qualifications of the candidate
     /// @param _manifesto Election manifesto of the candidate
     function addCandidate(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress,
-        string calldata _email,
-        string calldata _qualifications,
-        string calldata _manifesto
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
     ) external override {
         // Calculate age - use constant for seconds in a year
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
@@ -103,13 +103,13 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @param _qualifications Updated qualifications
     /// @param _manifesto Updated manifesto
     function updateCandidate(
-        string calldata _name,
+        string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string calldata _presentAddress,
-        string calldata _email,
-        string calldata _qualifications,
-        string calldata _manifesto
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
     ) external override onlyRegistered {
         // Verify age eligibility with the new DOB
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
