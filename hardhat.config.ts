@@ -37,6 +37,7 @@ const config: HardhatUserConfig = {
 
   solidity: {
     version: "0.8.28",
+    /*
     settings: {
       optimizer: {
         enabled: true,
@@ -47,6 +48,7 @@ const config: HardhatUserConfig = {
       // then creates the bytecode, however this is buggy for this project
       // viaIR: true,
     },
+    */
   },
   mocha: {
     timeout: 200000, // 200 seconds max for running tests
