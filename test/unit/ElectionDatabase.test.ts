@@ -49,61 +49,69 @@ describe("ElectionDatabase Unit Tests", function () {
     const publicClient = await hre.viem.getPublicClient();
 
     // Register voters
-    const hash1 = await voterDatabase.write.adminAddVoter([
-      voter1.account.address,
-      "John Voter",
-      getDobEpochFromAge(30),
-      GenderEnum.MALE,
-      "123 Main St",
-      false,
-    ]);
+    const hash1 = await voterDatabase.write.addVoter(
+      ["John Voter", getDobEpochFromAge(30), GenderEnum.MALE, "123 Main St"],
+      {
+        account: voter1.account,
+      }
+    );
     await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-    const hash2 = await voterDatabase.write.adminAddVoter([
-      voter2.account.address,
-      "Jane Voter",
-      getDobEpochFromAge(25),
-      GenderEnum.FEMALE,
-      "456 Oak St",
-      false,
-    ]);
+    const hash2 = await voterDatabase.write.addVoter(
+      ["Jane Voter", getDobEpochFromAge(25), GenderEnum.FEMALE, "456 Oak St"],
+      {
+        account: voter2.account,
+      }
+    );
     await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
     // Register candidates
-    const hash3 = await candidateDatabase.write.adminAddCandidate([
-      candidate1.account.address,
-      "Alice Candidate",
-      getDobEpochFromAge(35),
-      GenderEnum.FEMALE,
-      "789 Elm St",
-      "alice@example.com",
-      "PhD in Political Science",
-      "Build a better future",
-    ]);
+    const hash3 = await candidateDatabase.write.addCandidate(
+      [
+        "Alice Candidate",
+        getDobEpochFromAge(35),
+        GenderEnum.FEMALE,
+        "789 Elm St",
+        "alice@example.com",
+        "PhD in Political Science",
+        "Build a better future",
+      ],
+      {
+        account: candidate1.account,
+      }
+    );
     await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
-    const hash4 = await candidateDatabase.write.adminAddCandidate([
-      candidate2.account.address,
-      "Bob Candidate",
-      getDobEpochFromAge(42),
-      GenderEnum.MALE,
-      "101 Pine St",
-      "bob@example.com",
-      "MBA, Former Mayor",
-      "Economic prosperity for all",
-    ]);
+    const hash4 = await candidateDatabase.write.addCandidate(
+      [
+        "Bob Candidate",
+        getDobEpochFromAge(42),
+        GenderEnum.MALE,
+        "101 Pine St",
+        "bob@example.com",
+        "MBA, Former Mayor",
+        "Economic prosperity for all",
+      ],
+      {
+        account: candidate2.account,
+      }
+    );
     await publicClient.waitForTransactionReceipt({ hash: hash4 });
 
-    const hash5 = await candidateDatabase.write.adminAddCandidate([
-      candidate3.account.address,
-      "Carol Candidate",
-      getDobEpochFromAge(38),
-      GenderEnum.FEMALE,
-      "202 Cedar St",
-      "carol@example.com",
-      "LLB, Human Rights Activist",
-      "Justice and equality",
-    ]);
+    const hash5 = await candidateDatabase.write.addCandidate(
+      [
+        "Carol Candidate",
+        getDobEpochFromAge(38),
+        GenderEnum.FEMALE,
+        "202 Cedar St",
+        "carol@example.com",
+        "LLB, Human Rights Activist",
+        "Justice and equality",
+      ],
+      {
+        account: candidate3.account,
+      }
+    );
     await publicClient.waitForTransactionReceipt({ hash: hash5 });
 
     return {
