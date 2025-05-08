@@ -161,6 +161,20 @@ contract ElectionDatabase is AdminManagement {
         _;
     }
 
+    modifier onlyEnrolledCandidate(uint256 _electionId, address _candidate) {
+        // Verify candidate is registered in this election
+        Election storage election = s_elections[_electionId];
+        bool validCandidate = false;
+        for (uint256 i = 0; i < election.candidates.length; i++) {
+            if (election.candidates[i] == _candidate) {
+                validCandidate = true;
+                break;
+            }
+        }
+        if (!validCandidate) revert ElectionDatabase__CandidateNotRegistered();
+        _;
+    }
+
     /// @param _voterDBAddress Address of the VoterDatabase contract
     /// @param _candidateDBAddress Address of the CandidateDatabase contract
     constructor(address _voterDBAddress, address _candidateDBAddress) {
@@ -301,19 +315,10 @@ contract ElectionDatabase is AdminManagement {
         external
         onlyRegisteredElection(_electionId)
         onlyOpenElection(_electionId)
+        onlyEnrolledCandidate(_electionId, _candidate)
         onlyRegisteredVoter
     {
         Election storage election = s_elections[_electionId];
-
-        // Verify candidate is registered in this election
-        bool validCandidate = false;
-        for (uint256 i = 0; i < election.candidates.length; i++) {
-            if (election.candidates[i] == _candidate) {
-                validCandidate = true;
-                break;
-            }
-        }
-        if (!validCandidate) revert ElectionDatabase__CandidateNotRegistered();
 
         // Check if voter already voted in this specific election
         if (election.voterToVoteTimestamp[msg.sender] > 0)
