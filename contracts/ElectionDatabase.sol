@@ -146,7 +146,7 @@ contract ElectionDatabase is AdminManagement {
     }
 
     modifier onlyRegisteredVoter() {
-        if (!s_voterDB.getMyRegistrationStatus()) {
+        if (!s_voterDB.adminGetRegistrationStatus(msg.sender)) {
             revert ElectionDatabase__VoterNotRegistered();
         }
         _;

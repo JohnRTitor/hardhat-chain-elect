@@ -210,6 +210,13 @@ interface IVoterDatabase {
         external
         view
         returns (bool isRegistered);
+        
+    function adminGetRegistrationStatus(
+        address _voterAddress
+    )
+        external
+        view
+        returns (bool isRegistered);
 
     /// @notice Get your own voting status
     /// @return hasVoted Whether you have voted

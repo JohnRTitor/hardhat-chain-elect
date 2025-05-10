@@ -564,6 +564,20 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     {
         return s_voters[msg.sender].registrationTimestamp > 0;
     }
+    
+    /// @notice Get an account's registration status
+    /// @return isRegistered Whether they are registered to vote
+    function adminGetRegistrationStatus(
+        address _voterAddress
+    )
+        public
+        view
+        override
+        onlyAdmin
+        returns (bool isRegistered)
+    {
+        return s_voters[_voterAddress].registrationTimestamp > 0;
+    }
 
     /// @notice Get your own voting status
     /// @return hasVoted Whether you have voted
