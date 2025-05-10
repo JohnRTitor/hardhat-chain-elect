@@ -1,6 +1,6 @@
-// Run with `ts-node scripts/create-deployment-files.ts`
+// Run with `ts-node scripts/create-frontend-deployment-files.ts`
 // Specify the output dir manually with:
-// DEPLOY_OUT_DIR=/home/masum/Dev-Environment/Blockchains/blockchain-websites/nextjs-chain-elect/src/constants ts-node scripts/create-deployment-files.ts
+// DEPLOY_OUT_DIR=/home/masum/Dev-Environment/Blockchains/blockchain-websites/nextjs-chain-elect/src/constants ts-node scripts/create-frontend-deployment-files.ts
 
 import fs from "fs";
 import path from "path";
@@ -32,12 +32,19 @@ const voterDBArtifactPath = path.join(
   __dirname,
   "../artifacts/contracts/VoterDatabase.sol/VoterDatabase.json"
 );
+const electionDBArtifactPath = path.join(
+  __dirname,
+  "../artifacts/contracts/VoterDatabase.sol/VoterDatabase.json"
+);
 
 const candidateDBArtifact = JSON.parse(
   fs.readFileSync(candidateDBArtifactPath, "utf8")
 );
 const voterDBArtifact = JSON.parse(
   fs.readFileSync(voterDBArtifactPath, "utf8")
+);
+const electionDBArtifact = JSON.parse(
+  fs.readFileSync(electionDBArtifactPath, "utf8")
 );
 
 // Create deployment files
@@ -58,6 +65,8 @@ const createDeploymentFile = (name: string, address: string, abi: Abi[]) => {
 const candidateDBAddress =
   deployedAddresses["CandidateDatabaseModule#CandidateDatabase"];
 const voterDBAddress = deployedAddresses["VoterDatabaseModule#VoterDatabase"];
+const electionDbAddress =
+  deployedAddresses["ElectionDatabaseModule#ElectionDatabase"];
 
 // Create the deployment files
 createDeploymentFile(
@@ -66,5 +75,10 @@ createDeploymentFile(
   candidateDBArtifact.abi
 );
 createDeploymentFile("VoterDatabase", voterDBAddress, voterDBArtifact.abi);
+createDeploymentFile(
+  "ElectionDatabase",
+  electionDbAddress,
+  electionDBArtifact.abi
+);
 
 console.log("Deployment files created successfully!");
