@@ -157,32 +157,32 @@ describe("ElectionDatabase Unit Tests", function () {
   });
 
   describe("Election Management", function () {
-    describe("createElection", function () {
+    describe("adminCreateElection", function () {
       it("should revert if called by non-admin", async function () {
         const { electionDatabase, voter1 } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
         await expect(
-          electionDatabase.write.createElection(
+          electionDatabase.write.adminCreateElection(
             ["Presidential Election 2023", "National presidential election"],
             { account: voter1.account }
           )
         ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
-      it("should emit ElectionCreated on success", async function () {
+      it("should emit AdminCreatedElection on success", async function () {
         const { electionDatabase, owner, publicClient } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
-        const events = await electionDatabase.getEvents.ElectionCreated();
+        const events = await electionDatabase.getEvents.AdminCreatedElection();
         expect(events).to.have.lengthOf(1);
         assert.equal(events[0].args.electionId, 0n);
         assert.equal(events[0].args.name, "Presidential Election 2023");
@@ -195,14 +195,14 @@ describe("ElectionDatabase Unit Tests", function () {
         );
 
         // Create first election
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
         // Create second election
-        const hash2 = await electionDatabase.write.createElection([
+        const hash2 = await electionDatabase.write.adminCreateElection([
           "Senate Election 2023",
           "National senate election",
         ]);
@@ -220,20 +220,20 @@ describe("ElectionDatabase Unit Tests", function () {
       });
     });
 
-    describe("updateElection", function () {
+    describe("adminUpdateElection", function () {
       it("should revert if called by non-admin", async function () {
         const { electionDatabase, voter1, publicClient } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
         await expect(
-          electionDatabase.write.updateElection(
+          electionDatabase.write.adminUpdateElection(
             [0n, "Updated Election", "Updated Description"],
             { account: voter1.account }
           )
@@ -246,7 +246,7 @@ describe("ElectionDatabase Unit Tests", function () {
         );
 
         await expect(
-          electionDatabase.write.updateElection([
+          electionDatabase.write.adminUpdateElection([
             99n,
             "Invalid Election",
             "Should not work",
@@ -254,25 +254,25 @@ describe("ElectionDatabase Unit Tests", function () {
         ).to.be.rejectedWith("ElectionDatabase__ElectionNotFound");
       });
 
-      it("should emit ElectionUpdated on success", async function () {
+      it("should emit AdminUpdatedElection on success", async function () {
         const { electionDatabase, owner, publicClient } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-        const hash2 = await electionDatabase.write.updateElection([
+        const hash2 = await electionDatabase.write.adminUpdateElection([
           0n,
           "Updated Presidential Election",
           "Updated description with more details",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const events = await electionDatabase.getEvents.ElectionUpdated();
+        const events = await electionDatabase.getEvents.AdminUpdatedElection();
         expect(events).to.have.lengthOf(1);
         assert.equal(events[0].args.electionId, 0n);
         assert.equal(events[0].args.name, "Updated Presidential Election");
@@ -284,13 +284,13 @@ describe("ElectionDatabase Unit Tests", function () {
           deployElectionDatabaseFixture
         );
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-        const hash2 = await electionDatabase.write.updateElection([
+        const hash2 = await electionDatabase.write.adminUpdateElection([
           0n,
           "Updated Presidential Election",
           "Updated description with more details",
@@ -309,7 +309,7 @@ describe("ElectionDatabase Unit Tests", function () {
           deployElectionDatabaseFixture
         );
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -332,12 +332,12 @@ describe("ElectionDatabase Unit Tests", function () {
         ).to.be.rejectedWith("ElectionDatabase__ElectionNotFound");
       });
 
-      it("should emit ElectionDeleted on success", async function () {
+      it("should emit AdminDeletedElection on success", async function () {
         const { electionDatabase, owner, publicClient } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -346,7 +346,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const hash2 = await electionDatabase.write.adminDeleteElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const events = await electionDatabase.getEvents.ElectionDeleted();
+        const events = await electionDatabase.getEvents.AdminDeletedElection();
         expect(events).to.have.lengthOf(1);
         assert.equal(events[0].args.electionId, 0n);
         assert.equal(events[0].args.name, "Presidential Election 2023");
@@ -362,13 +362,13 @@ describe("ElectionDatabase Unit Tests", function () {
         );
 
         // Create two elections
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-        const hash2 = await electionDatabase.write.createElection([
+        const hash2 = await electionDatabase.write.adminCreateElection([
           "Senate Election 2023",
           "National senate election",
         ]);
@@ -412,7 +412,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -425,7 +425,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Try to enroll while election is active
@@ -441,7 +441,7 @@ describe("ElectionDatabase Unit Tests", function () {
           deployElectionDatabaseFixture
         );
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -459,7 +459,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -483,7 +483,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -521,7 +521,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -533,7 +533,7 @@ describe("ElectionDatabase Unit Tests", function () {
         });
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Try to withdraw while election is active
@@ -548,7 +548,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -566,7 +566,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -599,7 +599,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -617,7 +617,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, owner, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -649,7 +649,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -673,7 +673,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, owner, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -709,20 +709,20 @@ describe("ElectionDatabase Unit Tests", function () {
   });
 
   describe("Election Status Management", function () {
-    describe("openElection", function () {
+    describe("adminOpenElection", function () {
       it("should revert if election has no candidates", async function () {
         const { electionDatabase, publicClient } = await loadFixture(
           deployElectionDatabaseFixture
         );
 
-        const hash = await electionDatabase.write.createElection([
+        const hash = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
         await expect(
-          electionDatabase.write.openElection([0n])
+          electionDatabase.write.adminOpenElection([0n])
         ).to.be.rejectedWith("ElectionDatabase__ElectionHasNoContestant");
       });
 
@@ -730,7 +730,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, owner, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -744,7 +744,7 @@ describe("ElectionDatabase Unit Tests", function () {
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
         // Open election
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         const events = await electionDatabase.getEvents.ElectionOpened();
@@ -761,12 +761,12 @@ describe("ElectionDatabase Unit Tests", function () {
       });
     });
 
-    describe("closeElection", function () {
+    describe("adminCloseElection", function () {
       it("should emit ElectionClosed on success", async function () {
         const { electionDatabase, candidate1, owner, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -779,11 +779,11 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Close election
-        const hash4 = await electionDatabase.write.closeElection([0n]);
+        const hash4 = await electionDatabase.write.adminCloseElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash4 });
 
         const events = await electionDatabase.getEvents.ElectionClosed();
@@ -811,7 +811,7 @@ describe("ElectionDatabase Unit Tests", function () {
           publicClient,
         } = await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -824,7 +824,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         await expect(
@@ -838,7 +838,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -867,7 +867,7 @@ describe("ElectionDatabase Unit Tests", function () {
           publicClient,
         } = await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -881,7 +881,7 @@ describe("ElectionDatabase Unit Tests", function () {
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
         // Open the election
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Try voting for candidate3 who is registered in CandidateDatabase but not enrolled in this election
@@ -896,7 +896,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -909,7 +909,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // First vote (should succeed)
@@ -931,7 +931,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -944,7 +944,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         const hash4 = await electionDatabase.write.vote(
@@ -970,7 +970,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -983,7 +983,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         const votesBefore = await electionDatabase.read.getVotesOfCandidate([
@@ -1013,7 +1013,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1045,7 +1045,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, candidate1, candidate2, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1084,7 +1084,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, voter2, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1097,7 +1097,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Initial vote count
@@ -1134,7 +1134,7 @@ describe("ElectionDatabase Unit Tests", function () {
           publicClient,
         } = await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1153,7 +1153,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
-        const hash4 = await electionDatabase.write.openElection([0n]);
+        const hash4 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash4 });
 
         // Cast votes (1 for candidate1, 1 for candidate2)
@@ -1183,7 +1183,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, voter2, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1196,7 +1196,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Check initial status
@@ -1234,7 +1234,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const { electionDatabase, voter1, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
-        const hash1 = await electionDatabase.write.createElection([
+        const hash1 = await electionDatabase.write.adminCreateElection([
           "Presidential Election 2023",
           "National presidential election",
         ]);
@@ -1247,7 +1247,7 @@ describe("ElectionDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const hash3 = await electionDatabase.write.openElection([0n]);
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
         // Check initial timestamp

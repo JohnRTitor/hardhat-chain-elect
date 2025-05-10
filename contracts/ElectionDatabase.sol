@@ -68,21 +68,21 @@ contract ElectionDatabase is AdminManagement {
     uint256[] private s_electionIds;
 
     /// @notice Emitted when a new election is created
-    event ElectionCreated(
+    event AdminCreatedElection(
         uint256 indexed electionId,
         string name,
         address indexed creator
     );
 
     /// @notice Emitted when an election's details are updated
-    event ElectionUpdated(
+    event AdminUpdatedElection(
         uint256 indexed electionId,
         string name,
         address indexed updater
     );
 
     /// @notice Emitted when an election is deleted
-    event ElectionDeleted(
+    event AdminDeletedElection(
         uint256 indexed electionId,
         string name,
         address indexed remover
@@ -188,7 +188,7 @@ contract ElectionDatabase is AdminManagement {
     /// @notice Creates a new election with given name and description
     /// @param _name Name of the election
     /// @param _description Description of the election
-    function createElection(
+    function adminCreateElection(
         string memory _name,
         string memory _description
     ) external onlyAdmin {
@@ -204,14 +204,14 @@ contract ElectionDatabase is AdminManagement {
         s_electionIds.push(electionId);
         s_electionCounter++;
 
-        emit ElectionCreated(electionId, _name, msg.sender);
+        emit AdminCreatedElection(electionId, _name, msg.sender);
     }
 
     /// @notice Updates an existing election's details
     /// @param _electionId ID of the election to update
     /// @param _name New name for the election
     /// @param _description New description for the election
-    function updateElection(
+    function adminUpdateElection(
         uint256 _electionId,
         string memory _name,
         string memory _description
@@ -221,7 +221,7 @@ contract ElectionDatabase is AdminManagement {
         election.name = _name;
         election.description = _description;
 
-        emit ElectionUpdated(_electionId, _name, msg.sender);
+        emit AdminUpdatedElection(_electionId, _name, msg.sender);
     }
 
     /// @notice Deletes an existing election
@@ -244,7 +244,34 @@ contract ElectionDatabase is AdminManagement {
             }
         }
 
-        emit ElectionDeleted(_electionId, electionName, msg.sender);
+        emit AdminDeletedElection(_electionId, electionName, msg.sender);
+    }
+
+    /// @notice Opens an election for voting
+    /// @param _electionId ID of the election to open
+    /// @dev Election must have at least one candidate to be opened
+    function adminOpenElection(
+        uint256 _electionId
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+
+        // Prevent opening elections with no candidates
+        if (election.candidates.length == 0) {
+            revert ElectionDatabase__ElectionHasNoContestant();
+        }
+
+        election.isActive = true;
+        emit ElectionOpened(_electionId, msg.sender);
+    }
+
+    /// @notice Closes an election from voting
+    /// @param _electionId ID of the election to close
+    function adminCloseElection(
+        uint256 _electionId
+    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+        Election storage election = s_elections[_electionId];
+        election.isActive = false;
+        emit ElectionClosed(_electionId, msg.sender);
     }
 
     /// @notice Allows a candidate to enroll themselves in an election
@@ -389,33 +416,6 @@ contract ElectionDatabase is AdminManagement {
         }
 
         emit AdminRemovedCandidate(_electionId, _candidate, msg.sender);
-    }
-
-    /// @notice Opens an election for voting
-    /// @param _electionId ID of the election to open
-    /// @dev Election must have at least one candidate to be opened
-    function openElection(
-        uint256 _electionId
-    ) external onlyAdmin onlyRegisteredElection(_electionId) {
-        Election storage election = s_elections[_electionId];
-
-        // Prevent opening elections with no candidates
-        if (election.candidates.length == 0) {
-            revert ElectionDatabase__ElectionHasNoContestant();
-        }
-
-        election.isActive = true;
-        emit ElectionOpened(_electionId, msg.sender);
-    }
-
-    /// @notice Closes an election from voting
-    /// @param _electionId ID of the election to close
-    function closeElection(
-        uint256 _electionId
-    ) external onlyAdmin onlyRegisteredElection(_electionId) {
-        Election storage election = s_elections[_electionId];
-        election.isActive = false;
-        emit ElectionClosed(_electionId, msg.sender);
     }
 
     /// @notice Returns the vote count of a candidate in a specific election
