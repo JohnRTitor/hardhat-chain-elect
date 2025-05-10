@@ -38,10 +38,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Stores details for a single voter
     struct Voter {
         string name;
-        uint256 dateOfBirthEpoch;
-        Gender gender;
         string presentAddress;
-        bool hasVoted;
+        Gender gender;
+        uint256 timesVoted;
+        uint256 dateOfBirthEpoch;
         uint256 registrationTimestamp; // If > 0, voter is registered
     }
 
@@ -78,7 +78,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             dateOfBirthEpoch: _dateOfBirthEpoch,
             gender: _gender,
             presentAddress: _presentAddress,
-            hasVoted: false,
+            timesVoted: 0,
             registrationTimestamp: block.timestamp
         });
 
@@ -97,7 +97,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         Gender _gender,
         string memory _presentAddress
     ) external override onlyRegistered {
-        if (s_voters[msg.sender].hasVoted)
+        if (s_voters[msg.sender].timesVoted > 0)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
         // Verify age eligibility with the new DOB
@@ -139,8 +139,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Mark a voter as having voted
     /// @dev Should be called by the election contract/unit tests
     function markVoted() external override onlyRegistered {
-        s_voters[msg.sender].hasVoted = true;
-        emit VoterVoted(msg.sender);
+        s_voters[msg.sender].timesVoted += 1;
     }
 
     /// @notice Admin function to add a voter directly
@@ -150,14 +149,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter
     /// @param _presentAddress Present address of the voter
-    /// @param _hasVoted Initial voting status of the voter
+    /// @param _timesVoted Initial voting status of the voter
     function adminAddVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
-        bool _hasVoted
+        uint256 _timesVoted
     ) external override onlyAdmin {
         if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
 
@@ -175,7 +174,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             registrationTimestamp: block.timestamp,
             gender: _gender,
             presentAddress: _presentAddress,
-            hasVoted: _hasVoted
+            timesVoted: _timesVoted
         });
 
         s_voterAddresses.push(_voterAddress);
@@ -190,14 +189,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
-    /// @param _hasVoted Updated voting status
+    /// @param _timesVoted Updated voting status
     function adminUpdateVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
-        bool _hasVoted
+        uint256 _timesVoted
     ) external override onlyAdmin {
         if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
@@ -213,7 +212,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
-        voter.hasVoted = _hasVoted;
+        voter.timesVoted = _timesVoted;
 
         emit AdminUpdatedVoter(_voterAddress, msg.sender);
     }
@@ -249,15 +248,11 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Admin function to toggle a voter's voting status
     /// @dev Only owner/admins can call this function
     /// @param _voterAddress Address of the voter
-    /// @param _hasVoted New voting status to set
-    function adminSetVotingStatus(
-        address _voterAddress,
-        bool _hasVoted
-    ) external override onlyAdmin {
+    function adminMarkVoted(address _voterAddress) external override onlyAdmin {
         if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
 
-        s_voters[_voterAddress].hasVoted = _hasVoted;
+        s_voters[_voterAddress].timesVoted += 1;
         emit AdminUpdatedVotingStatus(_voterAddress, msg.sender);
     }
 
@@ -281,7 +276,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             IVoterDatabase.Gender gender,
             string memory presentAddress,
-            bool hasVoted,
+            uint256 timesVoted,
             uint256 /* registrationTimestamp */
         ) {
             // Check age eligibility
@@ -296,7 +291,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 registrationTimestamp: block.timestamp,
                 gender: Gender(uint(gender)),
                 presentAddress: presentAddress,
-                hasVoted: hasVoted
+                timesVoted: timesVoted
             });
 
             s_voterAddresses.push(_voterAddress);
@@ -336,7 +331,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
-                bool hasVoted,
+                uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
@@ -356,7 +351,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                     registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
-                    hasVoted: hasVoted
+                    timesVoted: timesVoted
                 });
 
                 s_voterAddresses.push(voterAddress);
@@ -412,7 +407,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
-                bool hasVoted,
+                uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
@@ -432,7 +427,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                     registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
-                    hasVoted: hasVoted
+                    timesVoted: timesVoted
                 });
 
                 s_voterAddresses.push(voterAddress);
@@ -459,7 +454,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
-    /// @return hasVoted Whether the voter has cast their vote
+    /// @return timesVoted How many times the voter has cast their vote
     function adminGetVoterDetails(
         address _voterAddress
     )
@@ -472,7 +467,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted,
+            uint256 timesVoted,
             uint256 registrationTimestamp
         )
     {
@@ -485,7 +480,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
-            voter.hasVoted,
+            voter.timesVoted,
             voter.registrationTimestamp
         );
     }
@@ -528,7 +523,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
-    /// @return hasVoted Whether you have voted
+    /// @return timesVoted How many times you have voted
     function getMyDetails()
         public
         view
@@ -539,7 +534,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted,
+            uint256 timesVoted,
             uint256 registrationTimestamp
         )
     {
@@ -549,7 +544,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
-            voter.hasVoted,
+            voter.timesVoted,
             voter.registrationTimestamp
         );
     }
@@ -564,23 +559,17 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     {
         return s_voters[msg.sender].registrationTimestamp > 0;
     }
-    
+
     /// @notice Get an account's registration status
     /// @return isRegistered Whether they are registered to vote
     function adminGetRegistrationStatus(
         address _voterAddress
-    )
-        public
-        view
-        override
-        onlyAdmin
-        returns (bool isRegistered)
-    {
+    ) public view override onlyAdmin returns (bool isRegistered) {
         return s_voters[_voterAddress].registrationTimestamp > 0;
     }
 
     /// @notice Get your own voting status
-    /// @return hasVoted Whether you have voted
+    /// @return hasVoted Whether you have voted at least once
     function getMyVotingStatus()
         public
         view
@@ -588,7 +577,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         onlyRegistered
         returns (bool hasVoted)
     {
-        return s_voters[msg.sender].hasVoted;
+        return s_voters[msg.sender].timesVoted > 0;
     }
 
     /// @notice Get your current age based on stored date of birth

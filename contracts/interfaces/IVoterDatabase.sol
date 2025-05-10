@@ -98,14 +98,14 @@ interface IVoterDatabase {
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter
     /// @param _presentAddress Present address of the voter
-    /// @param _hasVoted Initial voting status of the voter
+    /// @param _timesVoted Initial voting count of the voter
     function adminAddVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
-        bool _hasVoted
+        uint256 _timesVoted
     ) external;
 
     /// @notice Admin function to update voter details
@@ -114,27 +114,23 @@ interface IVoterDatabase {
     /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
-    /// @param _hasVoted Updated voting status
+    /// @param _timesVoted Updated voting count
     function adminUpdateVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
-        bool _hasVoted
+        uint256 _timesVoted
     ) external;
 
     /// @notice Admin function to remove a voter
     /// @param _voterAddress Address of the voter to remove
     function adminRemoveVoter(address _voterAddress) external;
 
-    /// @notice Admin function to toggle a voter's voting status
+    /// @notice Admin function to mark a voter as having voted
     /// @param _voterAddress Address of the voter
-    /// @param _hasVoted New voting status to set
-    function adminSetVotingStatus(
-        address _voterAddress,
-        bool _hasVoted
-    ) external;
+    function adminMarkVoted(address _voterAddress) external;
 
     /// @notice Import a specific voter from another VoterDatabase contract
     /// @param _sourceContract The address of the source VoterDatabase contract
@@ -162,7 +158,7 @@ interface IVoterDatabase {
     /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
-    /// @return hasVoted Whether the voter has cast their vote
+    /// @return timesVoted Number of times the voter has voted
     /// @return registrationTimestamp When the voter registered as Unix timestamp
     function adminGetVoterDetails(
         address _voterAddress
@@ -174,7 +170,7 @@ interface IVoterDatabase {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted,
+            uint256 timesVoted,
             uint256 registrationTimestamp
         );
 
@@ -191,7 +187,8 @@ interface IVoterDatabase {
     /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
-    /// @return hasVoted Whether you have voted
+    /// @return timesVoted Number of times you have voted
+    /// @return registrationTimestamp When you registered as Unix timestamp
     function getMyDetails()
         external
         view
@@ -200,7 +197,7 @@ interface IVoterDatabase {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted,
+            uint256 timesVoted,
             uint256 registrationTimestamp
         );
 
@@ -210,15 +207,23 @@ interface IVoterDatabase {
         external
         view
         returns (bool isRegistered);
-        
+
     function adminGetRegistrationStatus(
         address _voterAddress
-    )
-        external
-        view
-        returns (bool isRegistered);
+    ) external view returns (bool isRegistered);
 
     /// @notice Get your own voting status
-    /// @return hasVoted Whether you have voted
+    /// @return hasVoted Whether you have voted at least once
     function getMyVotingStatus() external view returns (bool hasVoted);
+
+    /// @notice Calculate age from date of birth
+    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
+    /// @return Age in years
+    function calculateAge(
+        uint256 _dateOfBirthEpoch
+    ) external view returns (uint256);
+
+    /// @notice Get your current age based on stored date of birth
+    /// @return Your current age in years
+    function getMyAge() external view returns (uint256);
 }

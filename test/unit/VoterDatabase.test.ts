@@ -93,7 +93,7 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[1], getDobEpochFromAge(25));
         assert.equal(details[2], GenderEnum.MALE);
         assert.equal(details[3], "123 Main St");
-        assert.equal(details[4], false); // hasVoted should be false
+        assert.equal(details[4], 0n); // timesVoted should be 0
         assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
       });
     });
@@ -187,7 +187,7 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[1], getDobEpochFromAge(41));
         assert.equal(details[2], GenderEnum.FEMALE);
         assert.equal(details[3], "New Street");
-        assert.equal(details[4], false); // hasVoted should still be false
+        assert.equal(details[4], 0n); // timesVoted should still be 0
         assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should still be valid
       });
     });
@@ -250,27 +250,6 @@ describe("VoterDatabase Unit Tests", function () {
         );
       });
 
-      it("should emit VoterVoted on success", async function () {
-        const { voterDatabase, owner, publicClient } = await loadFixture(
-          deployVoterDatabaseFixture
-        );
-
-        const hash1 = await voterDatabase.write.addVoter([
-          "Grace",
-          getDobEpochFromAge(35),
-          GenderEnum.FEMALE,
-          "Some Address",
-        ]);
-        await publicClient.waitForTransactionReceipt({ hash: hash1 });
-
-        const hash2 = await voterDatabase.write.markVoted();
-        await publicClient.waitForTransactionReceipt({ hash: hash2 });
-
-        const events = await voterDatabase.getEvents.VoterVoted();
-        expect(events).to.have.lengthOf(1);
-        assert.equal(events[0].args.voter, getAddress(owner.account.address));
-      });
-
       it("should update voter's voting status", async function () {
         const { voterDatabase, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
@@ -311,7 +290,7 @@ describe("VoterDatabase Unit Tests", function () {
               getDobEpochFromAge(25),
               GenderEnum.MALE,
               "Some Address",
-              false,
+              0n,
             ],
             { account: otherAccount.account }
           )
@@ -328,7 +307,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(25),
             GenderEnum.MALE,
             "Some Address",
-            false,
+            0n,
           ])
         ).to.be.rejectedWith("VoterDatabase__InvalidAddress");
       });
@@ -343,7 +322,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -371,7 +350,7 @@ describe("VoterDatabase Unit Tests", function () {
               getDobEpochFromAge(26),
               GenderEnum.FEMALE,
               "New Address",
-              false,
+              0n,
             ],
             { account: otherAccount.account }
           )
@@ -390,7 +369,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(26),
             GenderEnum.FEMALE,
             "New Address",
-            false,
+            0n,
           ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
@@ -406,7 +385,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -417,7 +396,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(26),
           GenderEnum.FEMALE,
           "New Address",
-          true,
+          1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -441,7 +420,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(30),
           GenderEnum.MALE,
           "Some Address",
-          true,
+          1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -452,7 +431,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "New Address",
-          true,
+          1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -464,7 +443,7 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(voterDetails[1], getDobEpochFromAge(31));
         assert.equal(voterDetails[2], GenderEnum.FEMALE);
         assert.equal(voterDetails[3], "New Address");
-        assert.equal(voterDetails[4], true);
+        assert.equal(voterDetails[4], 1n);
       });
     });
 
@@ -499,7 +478,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(33),
           GenderEnum.FEMALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -529,7 +508,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(27),
           GenderEnum.MALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -548,16 +527,15 @@ describe("VoterDatabase Unit Tests", function () {
       });
     });
 
-    describe("adminSetVotingStatus", function () {
+    describe("adminMarkVoted", function () {
       it("should revert if called by non-admin", async function () {
         const { voterDatabase, otherAccount } = await loadFixture(
           deployVoterDatabaseFixture
         );
         await expect(
-          voterDatabase.write.adminSetVotingStatus(
-            [otherAccount.account.address, true],
-            { account: otherAccount.account }
-          )
+          voterDatabase.write.adminMarkVoted([otherAccount.account.address], {
+            account: otherAccount.account,
+          })
         ).to.be.rejectedWith("AdminManagement__NotAdmin");
       });
 
@@ -566,14 +544,11 @@ describe("VoterDatabase Unit Tests", function () {
           deployVoterDatabaseFixture
         );
         await expect(
-          voterDatabase.write.adminSetVotingStatus([
-            otherAccount.account.address,
-            true,
-          ])
+          voterDatabase.write.adminMarkVoted([otherAccount.account.address])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
 
-      it("should emit VotingStatusReset on success", async function () {
+      it("should emit AdminUpdatedVotingStatus on success", async function () {
         const { voterDatabase, otherAccount, owner, publicClient } =
           await loadFixture(deployVoterDatabaseFixture);
         // First add a voter
@@ -583,14 +558,13 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(29),
           GenderEnum.FEMALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-        // Then set their voting status
-        const hash2 = await voterDatabase.write.adminSetVotingStatus([
+        // Then mark them as voted
+        const hash2 = await voterDatabase.write.adminMarkVoted([
           otherAccount.account.address,
-          true,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -607,14 +581,14 @@ describe("VoterDatabase Unit Tests", function () {
         const { voterDatabase, otherAccount, publicClient } = await loadFixture(
           deployVoterDatabaseFixture
         );
-        // Add a voter with hasVoted = false
+        // Add a voter with timesVoted = 0
         const hash1 = await voterDatabase.write.adminAddVoter([
           otherAccount.account.address,
           "Nina",
           getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "Some Address",
-          false,
+          0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -622,12 +596,11 @@ describe("VoterDatabase Unit Tests", function () {
         let voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], false);
+        assert.equal(voterDetails[4], 0n);
 
-        // Set voting status to true
-        const hash2 = await voterDatabase.write.adminSetVotingStatus([
+        // Mark as voted
+        const hash2 = await voterDatabase.write.adminMarkVoted([
           otherAccount.account.address,
-          true,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -635,20 +608,19 @@ describe("VoterDatabase Unit Tests", function () {
         voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], true);
+        assert.equal(voterDetails[4], 1n);
 
-        // Reset voting status to false
-        const hash3 = await voterDatabase.write.adminSetVotingStatus([
+        // Mark as voted again to increment counter
+        const hash3 = await voterDatabase.write.adminMarkVoted([
           otherAccount.account.address,
-          false,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
-        // Verify reset state
+        // Verify counter increased
         voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], false);
+        assert.equal(voterDetails[4], 2n);
       });
     });
   });
@@ -682,7 +654,7 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[1], getDobEpochFromAge(38));
           assert.equal(details[2], GenderEnum.MALE);
           assert.equal(details[3], "456 Oak St");
-          assert.equal(details[4], false);
+          assert.equal(details[4], 0n);
           assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
         });
       });
@@ -804,7 +776,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
-            false,
+            0n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -814,7 +786,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
-            true,
+            1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -846,7 +818,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
-            false,
+            0n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -856,7 +828,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
-            true,
+            1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -913,7 +885,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(42),
             GenderEnum.FEMALE,
             "Test Address",
-            true,
+            1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -925,7 +897,7 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[1], getDobEpochFromAge(42));
           assert.equal(details[2], GenderEnum.FEMALE);
           assert.equal(details[3], "Test Address");
-          assert.equal(details[4], true);
+          assert.equal(details[4], 1n);
         });
       });
     });
