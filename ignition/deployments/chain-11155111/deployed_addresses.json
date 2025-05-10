@@ -1,4 +1,5 @@
 {
-  "CandidateDatabaseModule#CandidateDatabase": "0x0f3CB74806185c9Ee5De47213862ac846BB04134",
-  "VoterDatabaseModule#VoterDatabase": "0xdF6C9c0BEeD4Dc094A6F8D6B0d74D367D181273D"
+  "VoterDatabaseModule#VoterDatabase": "0x8D46d04198Bb54F0849507cA0bAc94C691fc7b7d",
+  "CandidateDatabaseModule#CandidateDatabase": "0x44c945553F830c3d82bEB941a19084A569b3a4A3",
+  "ElectionDatabaseModule#ElectionDatabase": "0x3E825B776CE1f145EDE1F3Ce690f3E9241128D22"
 }
