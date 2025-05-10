@@ -200,7 +200,8 @@ interface IVoterDatabase {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted
+            bool hasVoted,
+            uint256 registrationTimestamp
         );
 
     /// @notice Get your own registration status

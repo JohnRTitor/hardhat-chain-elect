@@ -198,7 +198,7 @@ interface ICandidateDatabase {
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
     /// @return registrationTimestamp When you registered
-    function getMyCandidateDetails()
+    function getMyDetails()
         external
         view
         returns (

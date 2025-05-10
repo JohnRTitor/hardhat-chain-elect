@@ -539,7 +539,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     /// @return qualifications Your qualifications
     /// @return manifesto Your manifesto
     /// @return registrationTimestamp When you registered
-    function getMyCandidateDetails()
+    function getMyDetails()
         public
         view
         override

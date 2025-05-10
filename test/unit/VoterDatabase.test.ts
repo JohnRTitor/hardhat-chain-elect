@@ -94,6 +94,7 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[2], GenderEnum.MALE);
         assert.equal(details[3], "123 Main St");
         assert.equal(details[4], false); // hasVoted should be false
+        assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
       });
     });
 
@@ -187,6 +188,7 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[2], GenderEnum.FEMALE);
         assert.equal(details[3], "New Street");
         assert.equal(details[4], false); // hasVoted should still be false
+        assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should still be valid
       });
     });
 
@@ -681,6 +683,7 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[2], GenderEnum.MALE);
           assert.equal(details[3], "456 Oak St");
           assert.equal(details[4], false);
+          assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
         });
       });
 

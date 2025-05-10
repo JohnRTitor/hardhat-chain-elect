@@ -539,7 +539,8 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
-            bool hasVoted
+            bool hasVoted,
+            uint256 registrationTimestamp
         )
     {
         Voter memory voter = s_voters[msg.sender];
@@ -548,7 +549,8 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
-            voter.hasVoted
+            voter.hasVoted,
+            voter.registrationTimestamp
         );
     }
 

@@ -115,7 +115,7 @@ describe("CandidateDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
-        const details = await candidateDatabase.read.getMyCandidateDetails();
+        const details = await candidateDatabase.read.getMyDetails();
         assert.equal(details[0], "Alice");
         assert.equal(details[1], getDobEpochFromAge(25));
         assert.equal(Number(details[2]), GenderEnum.FEMALE);
@@ -123,6 +123,7 @@ describe("CandidateDatabase Unit Tests", function () {
         assert.equal(details[4], "alice@example.com");
         assert.equal(details[5], "PhD in Computer Science");
         assert.equal(details[6], "Making technology accessible for all");
+        assert.isAtLeast(Number(details[7]), 1); // registrationTimestamp should be valid
       });
     });
 
@@ -204,7 +205,7 @@ describe("CandidateDatabase Unit Tests", function () {
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-        const details = await candidateDatabase.read.getMyCandidateDetails();
+        const details = await candidateDatabase.read.getMyDetails();
         assert.equal(details[0], "David Smith");
         assert.equal(details[1], getDobEpochFromAge(41));
         assert.equal(Number(details[2]), GenderEnum.MALE);
@@ -212,6 +213,7 @@ describe("CandidateDatabase Unit Tests", function () {
         assert.equal(details[4], "david.smith@example.com");
         assert.equal(details[5], "PhD, Post-Doc");
         assert.equal(details[6], "Updated Platform");
+        assert.isAtLeast(Number(details[7]), 1); // registrationTimestamp should still be valid
       });
     });
 
@@ -838,13 +840,13 @@ describe("CandidateDatabase Unit Tests", function () {
         });
       });
 
-      describe("getMyCandidateDetails", function () {
+      describe("getMyDetails", function () {
         it("should revert if not registered", async function () {
           const { candidateDatabase } = await loadFixture(
             deployCandidateDatabaseFixture
           );
           await expect(
-            candidateDatabase.read.getMyCandidateDetails()
+            candidateDatabase.read.getMyDetails()
           ).to.be.rejectedWith("CandidateDatabase__NotRegistered");
         });
 
@@ -863,7 +865,7 @@ describe("CandidateDatabase Unit Tests", function () {
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
-          const profile = await candidateDatabase.read.getMyCandidateDetails();
+          const profile = await candidateDatabase.read.getMyDetails();
           assert.equal(profile[0], "Steven");
           assert.equal(profile[1], getDobEpochFromAge(42));
           assert.equal(Number(profile[2]), GenderEnum.MALE);
