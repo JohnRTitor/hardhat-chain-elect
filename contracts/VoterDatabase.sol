@@ -42,7 +42,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         Gender gender;
         string presentAddress;
         bool hasVoted;
-        uint256 timeWhenRegisteredEpoch; // If > 0, voter is registered
+        uint256 registrationTimestamp; // If > 0, voter is registered
     }
 
     mapping(address => Voter) private s_voters;
@@ -50,7 +50,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
     /// @notice Functions with this modifier can only be called by registered voters
     modifier onlyRegistered() {
-        if (s_voters[msg.sender].timeWhenRegisteredEpoch == 0)
+        if (s_voters[msg.sender].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
         _;
     }
@@ -70,7 +70,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
         if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
-        if (s_voters[msg.sender].timeWhenRegisteredEpoch > 0)
+        if (s_voters[msg.sender].registrationTimestamp > 0)
             revert VoterDatabase__AlreadyRegistered();
 
         s_voters[msg.sender] = Voter({
@@ -79,7 +79,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             gender: _gender,
             presentAddress: _presentAddress,
             hasVoted: false,
-            timeWhenRegisteredEpoch: block.timestamp
+            registrationTimestamp: block.timestamp
         });
 
         s_voterAddresses.push(msg.sender);
@@ -162,7 +162,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
 
         // Check if already registered
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch > 0)
+        if (s_voters[_voterAddress].registrationTimestamp > 0)
             revert VoterDatabase__AlreadyRegistered();
 
         // Check age eligibility
@@ -172,7 +172,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         s_voters[_voterAddress] = Voter({
             name: _name,
             dateOfBirthEpoch: _dateOfBirthEpoch,
-            timeWhenRegisteredEpoch: block.timestamp,
+            registrationTimestamp: block.timestamp,
             gender: _gender,
             presentAddress: _presentAddress,
             hasVoted: _hasVoted
@@ -199,7 +199,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         string memory _presentAddress,
         bool _hasVoted
     ) external override onlyAdmin {
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch == 0)
+        if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
 
         // Check age eligibility
@@ -208,7 +208,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
         Voter storage voter = s_voters[_voterAddress];
 
-        // Update details but preserve timeWhenRegisteredEpoch
+        // Update details but preserve registrationTimestamp
         voter.name = _name;
         voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
@@ -224,7 +224,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function adminRemoveVoter(
         address _voterAddress
     ) external override onlyAdmin {
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch == 0)
+        if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
 
         // Remove voter from mapping
@@ -254,7 +254,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         address _voterAddress,
         bool _hasVoted
     ) external override onlyAdmin {
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch == 0)
+        if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
 
         s_voters[_voterAddress].hasVoted = _hasVoted;
@@ -270,7 +270,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         address _voterAddress
     ) external override onlyAdmin {
         // Skip if voter is already registered in this contract
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch > 0) {
+        if (s_voters[_voterAddress].registrationTimestamp > 0) {
             revert VoterDatabase__AlreadyRegistered();
         }
 
@@ -282,7 +282,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             IVoterDatabase.Gender gender,
             string memory presentAddress,
             bool hasVoted,
-            uint256 /* timeWhenRegisteredEpoch */
+            uint256 /* registrationTimestamp */
         ) {
             // Check age eligibility
             uint256 age = (block.timestamp - dateOfBirthEpoch) /
@@ -293,7 +293,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             s_voters[_voterAddress] = Voter({
                 name: name,
                 dateOfBirthEpoch: dateOfBirthEpoch,
-                timeWhenRegisteredEpoch: block.timestamp,
+                registrationTimestamp: block.timestamp,
                 gender: Gender(uint(gender)),
                 presentAddress: presentAddress,
                 hasVoted: hasVoted
@@ -324,7 +324,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             address voterAddress = _voterAddresses[i];
 
             // Skip if voter is already registered
-            if (s_voters[voterAddress].timeWhenRegisteredEpoch > 0) {
+            if (s_voters[voterAddress].registrationTimestamp > 0) {
                 unchecked {
                     ++i;
                 }
@@ -337,7 +337,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
                 bool hasVoted,
-                uint256 /* timeWhenRegisteredEpoch */
+                uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
                 uint256 age = (block.timestamp - dateOfBirthEpoch) /
@@ -353,7 +353,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 s_voters[voterAddress] = Voter({
                     name: name,
                     dateOfBirthEpoch: dateOfBirthEpoch,
-                    timeWhenRegisteredEpoch: block.timestamp,
+                    registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
                     hasVoted: hasVoted
@@ -400,7 +400,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             address voterAddress = voters[i];
 
             // Skip if voter is already registered in this contract
-            if (s_voters[voterAddress].timeWhenRegisteredEpoch > 0) {
+            if (s_voters[voterAddress].registrationTimestamp > 0) {
                 unchecked {
                     ++i;
                 }
@@ -413,7 +413,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
                 bool hasVoted,
-                uint256 /* timeWhenRegisteredEpoch */
+                uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
                 uint256 age = (block.timestamp - dateOfBirthEpoch) /
@@ -429,7 +429,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 s_voters[voterAddress] = Voter({
                     name: name,
                     dateOfBirthEpoch: dateOfBirthEpoch,
-                    timeWhenRegisteredEpoch: block.timestamp,
+                    registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
                     hasVoted: hasVoted
@@ -473,10 +473,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             Gender gender,
             string memory presentAddress,
             bool hasVoted,
-            uint256 timeWhenRegisteredEpoch
+            uint256 registrationTimestamp
         )
     {
-        if (s_voters[_voterAddress].timeWhenRegisteredEpoch == 0) {
+        if (s_voters[_voterAddress].registrationTimestamp == 0) {
             revert VoterDatabase__NotRegistered();
         }
         Voter memory voter = s_voters[_voterAddress];
@@ -486,7 +486,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.gender,
             voter.presentAddress,
             voter.hasVoted,
-            voter.timeWhenRegisteredEpoch
+            voter.registrationTimestamp
         );
     }
 
@@ -560,7 +560,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         override
         returns (bool isRegistered)
     {
-        return s_voters[msg.sender].timeWhenRegisteredEpoch > 0;
+        return s_voters[msg.sender].registrationTimestamp > 0;
     }
 
     /// @notice Get your own voting status

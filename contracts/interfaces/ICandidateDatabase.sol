@@ -168,7 +168,7 @@ interface ICandidateDatabase {
     /// @return email The email address of the candidate
     /// @return qualifications The qualifications of the candidate
     /// @return manifesto The election manifesto of the candidate
-    /// @return timeWhenRegisteredEpoch When the candidate registered
+    /// @return registrationTimestamp When the candidate registered
     function getCandidateDetails(
         address _candidateAddress
     )
@@ -182,7 +182,7 @@ interface ICandidateDatabase {
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 timeWhenRegisteredEpoch
+            uint256 registrationTimestamp
         );
 
     /// @notice Get the list of all registered candidate addresses
@@ -197,7 +197,7 @@ interface ICandidateDatabase {
     /// @return email Your email
     /// @return qualifications Your qualifications
     /// @return manifesto Your election manifesto
-    /// @return timeWhenRegisteredEpoch When you registered
+    /// @return registrationTimestamp When you registered
     function getMyCandidateDetails()
         external
         view
@@ -209,7 +209,7 @@ interface ICandidateDatabase {
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 timeWhenRegisteredEpoch
+            uint256 registrationTimestamp
         );
 
     /// @notice Get your own registration status

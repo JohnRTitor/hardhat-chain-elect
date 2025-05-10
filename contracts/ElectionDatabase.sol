@@ -57,7 +57,7 @@ contract ElectionDatabase is AdminManagement {
         bool isActive;
         uint256 totalVotes;
         // If > 0, election is registered. Acts as creation timestamp
-        uint256 createdTimestamp;
+        uint256 registrationTimestamp;
     }
 
     IVoterDatabase private immutable s_voterDB;
@@ -128,7 +128,7 @@ contract ElectionDatabase is AdminManagement {
     event ElectionClosed(uint256 indexed electionId, address indexed admin);
 
     modifier onlyRegisteredElection(uint256 _electionId) {
-        if (s_elections[_electionId].createdTimestamp == 0)
+        if (s_elections[_electionId].registrationTimestamp == 0)
             revert ElectionDatabase__ElectionNotFound();
         _;
     }
@@ -199,7 +199,7 @@ contract ElectionDatabase is AdminManagement {
         newElection.description = _description;
         newElection.isActive = false;
         newElection.totalVotes = 0;
-        newElection.createdTimestamp = block.timestamp; // Set timestamp to register the election
+        newElection.registrationTimestamp = block.timestamp; // Set timestamp to register the election
 
         s_electionIds.push(electionId);
         s_electionCounter++;
@@ -446,7 +446,7 @@ contract ElectionDatabase is AdminManagement {
             bool isActive,
             address[] memory candidates,
             uint256 totalVotes,
-            uint256 createdTimestamp
+            uint256 registrationTimestamp
         )
     {
         Election storage election = s_elections[_electionId];
@@ -456,7 +456,7 @@ contract ElectionDatabase is AdminManagement {
             election.isActive,
             election.candidates,
             election.totalVotes,
-            election.createdTimestamp
+            election.registrationTimestamp
         );
     }
 

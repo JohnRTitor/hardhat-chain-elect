@@ -163,7 +163,7 @@ interface IVoterDatabase {
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
     /// @return hasVoted Whether the voter has cast their vote
-    /// @return timeWhenRegisteredEpoch When the voter registered as Unix timestamp
+    /// @return registrationTimestamp When the voter registered as Unix timestamp
     function adminGetVoterDetails(
         address _voterAddress
     )
@@ -175,7 +175,7 @@ interface IVoterDatabase {
             Gender gender,
             string memory presentAddress,
             bool hasVoted,
-            uint256 timeWhenRegisteredEpoch
+            uint256 registrationTimestamp
         );
 
     /// @notice Get the total number of registered voters
