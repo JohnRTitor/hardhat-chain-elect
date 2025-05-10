@@ -53,11 +53,10 @@ contract ElectionDatabase is AdminManagement {
         mapping(address => address) voterToChosenCandidate;
         // voter -> timestamp when they voted in this specific election (0 if not voted)
         mapping(address => uint256) voterToVoteTimestamp;
-        // flag to determine whether an election is valid/registered
-        bool isRegistered;
         // used to track whether the election is active or not
         bool isActive;
         uint256 totalVotes;
+        // If > 0, election is registered. Acts as creation timestamp
         uint256 createdTimestamp;
     }
 
@@ -129,7 +128,7 @@ contract ElectionDatabase is AdminManagement {
     event ElectionClosed(uint256 indexed electionId, address indexed admin);
 
     modifier onlyRegisteredElection(uint256 _electionId) {
-        if (!s_elections[_electionId].isRegistered)
+        if (s_elections[_electionId].createdTimestamp == 0)
             revert ElectionDatabase__ElectionNotFound();
         _;
     }
@@ -199,9 +198,8 @@ contract ElectionDatabase is AdminManagement {
         newElection.name = _name;
         newElection.description = _description;
         newElection.isActive = false;
-        newElection.isRegistered = true;
         newElection.totalVotes = 0;
-        newElection.createdTimestamp = block.timestamp;
+        newElection.createdTimestamp = block.timestamp; // Set timestamp to register the election
 
         s_electionIds.push(electionId);
         s_electionCounter++;
@@ -234,8 +232,8 @@ contract ElectionDatabase is AdminManagement {
         // Store the name before marking as not registered
         string memory electionName = s_elections[_electionId].name;
 
-        // Mark as not registered
-        s_elections[_electionId].isRegistered = false;
+        // Delete from the mapping
+        delete s_elections[_electionId];
 
         // Remove from electionIds array using swap and pop
         for (uint256 i = 0; i < s_electionIds.length; i++) {

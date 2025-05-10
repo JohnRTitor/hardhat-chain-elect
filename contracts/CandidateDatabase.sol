@@ -40,8 +40,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string email;
         string qualifications;
         string manifesto;
-        uint256 timeWhenRegisteredEpoch;
-        bool isRegistered;
+        uint256 timeWhenRegisteredEpoch; // If > 0, candidate is registered
     }
 
     mapping(address => Candidate) private s_candidates;
@@ -49,7 +48,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
 
     /// @notice Functions with this modifier can only be called by registered candidates
     modifier onlyRegistered() {
-        if (!s_candidates[msg.sender].isRegistered)
+        if (s_candidates[msg.sender].timeWhenRegisteredEpoch == 0)
             revert CandidateDatabase__NotRegistered();
         _;
     }
@@ -75,7 +74,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
         if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
-        if (s_candidates[msg.sender].isRegistered)
+        if (s_candidates[msg.sender].timeWhenRegisteredEpoch > 0)
             revert CandidateDatabase__AlreadyRegistered();
 
         s_candidates[msg.sender] = Candidate({
@@ -86,8 +85,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
-            timeWhenRegisteredEpoch: block.timestamp,
-            isRegistered: true
+            timeWhenRegisteredEpoch: block.timestamp
         });
 
         s_candidateAddresses.push(msg.sender);
@@ -134,7 +132,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         // remove candidate from mapping
         delete s_candidates[candidateAddress];
 
-        // swap candidate with last element and pop
+        // swap candidate with last element and pop from the address array
         uint256 length = s_candidateAddresses.length;
         for (uint256 i = 0; i < length; ) {
             if (s_candidateAddresses[i] == candidateAddress) {
@@ -177,7 +175,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
         if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
-        if (s_candidates[_candidateAddress].isRegistered)
+        if (s_candidates[_candidateAddress].timeWhenRegisteredEpoch > 0)
             revert CandidateDatabase__AlreadyRegistered();
 
         s_candidates[_candidateAddress] = Candidate({
@@ -188,8 +186,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
-            timeWhenRegisteredEpoch: block.timestamp,
-            isRegistered: true
+            timeWhenRegisteredEpoch: block.timestamp
         });
 
         s_candidateAddresses.push(_candidateAddress);
@@ -216,7 +213,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string memory _qualifications,
         string memory _manifesto
     ) external override onlyAdmin {
-        if (!s_candidates[_candidateAddress].isRegistered)
+        if (s_candidates[_candidateAddress].timeWhenRegisteredEpoch == 0)
             revert CandidateDatabase__NotRegistered();
 
         // Check age eligibility
@@ -243,7 +240,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function adminRemoveCandidate(
         address _candidateAddress
     ) external override onlyAdmin {
-        if (!s_candidates[_candidateAddress].isRegistered) {
+        if (s_candidates[_candidateAddress].timeWhenRegisteredEpoch == 0) {
             revert CandidateDatabase__NotRegistered();
         }
 
@@ -275,7 +272,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         address _candidateAddress
     ) external override onlyAdmin {
         // Skip if candidate is already registered in this contract
-        if (s_candidates[_candidateAddress].isRegistered) {
+        if (s_candidates[_candidateAddress].timeWhenRegisteredEpoch > 0) {
             revert CandidateDatabase__AlreadyRegistered();
         }
 
@@ -296,7 +293,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                 SECONDS_PER_YEAR;
             if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
 
-            // Add candidate to this contract
+            // Add candidate to this contract - preserve original registration time
             s_candidates[_candidateAddress] = Candidate({
                 name: name,
                 dateOfBirthEpoch: dateOfBirthEpoch,
@@ -305,8 +302,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                 email: email,
                 qualifications: qualifications,
                 manifesto: manifesto,
-                timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
-                isRegistered: true
+                timeWhenRegisteredEpoch: timeWhenRegisteredEpoch
             });
 
             s_candidateAddresses.push(_candidateAddress);
@@ -334,7 +330,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             address candidateAddress = _candidateAddresses[i];
 
             // Skip if candidate is already registered
-            if (s_candidates[candidateAddress].isRegistered) {
+            if (s_candidates[candidateAddress].timeWhenRegisteredEpoch > 0) {
                 unchecked {
                     ++i;
                 }
@@ -361,7 +357,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                     continue; // Skip ineligible candidates
                 }
 
-                // Add candidate to this contract
+                // Add candidate to this contract - preserve original registration time
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
                     dateOfBirthEpoch: dateOfBirthEpoch,
@@ -370,8 +366,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
-                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
-                    isRegistered: true
+                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch
                 });
 
                 s_candidateAddresses.push(candidateAddress);
@@ -415,7 +410,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             address candidateAddress = candidates[i];
 
             // Skip if candidate is already registered in this contract
-            if (s_candidates[candidateAddress].isRegistered) {
+            if (s_candidates[candidateAddress].timeWhenRegisteredEpoch > 0) {
                 unchecked {
                     ++i;
                 }
@@ -442,7 +437,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                     continue; // Skip ineligible candidates
                 }
 
-                // Add candidate to this contract
+                // Add candidate to this contract - preserve original registration time
                 s_candidates[candidateAddress] = Candidate({
                     name: name,
                     dateOfBirthEpoch: dateOfBirthEpoch,
@@ -451,8 +446,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                     email: email,
                     qualifications: qualifications,
                     manifesto: manifesto,
-                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch,
-                    isRegistered: true
+                    timeWhenRegisteredEpoch: timeWhenRegisteredEpoch
                 });
 
                 s_candidateAddresses.push(candidateAddress);
@@ -509,7 +503,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             uint256 timeWhenRegisteredEpoch
         )
     {
-        if (!s_candidates[_candidateAddress].isRegistered) {
+        if (s_candidates[_candidateAddress].timeWhenRegisteredEpoch == 0) {
             revert CandidateDatabase__NotRegistered();
         }
         Candidate memory candidate = s_candidates[_candidateAddress];
@@ -582,7 +576,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         override
         returns (bool isRegistered)
     {
-        return s_candidates[msg.sender].isRegistered;
+        return s_candidates[msg.sender].timeWhenRegisteredEpoch > 0;
     }
 
     /// @notice Get a candidate's registration status
@@ -591,7 +585,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function getCandidateRegistrationStatus(
         address _candidateAddress
     ) public view override returns (bool isRegistered) {
-        return s_candidates[_candidateAddress].isRegistered;
+        return s_candidates[_candidateAddress].timeWhenRegisteredEpoch > 0;
     }
 
     /// @notice Get number of registered candidates
