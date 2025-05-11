@@ -3,23 +3,26 @@ pragma solidity ^0.8.8;
 
 import {ICandidateDatabase} from "./interfaces/ICandidateDatabase.sol";
 import {AdminManagement} from "./shared/AdminManagement.sol";
+import {ElectionUtils} from "./lib/ElectionUtils.sol";
 
 /**
  * @title CandidateDatabase Contract
  * @author Masum Reza
- * @notice This contract allows candidates to self-register and update their profiles.
- * @dev functions specifically prepended with admin may only be called by the contract owner or admins
- * @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
+ * @notice This contract manages candidate registration and profiles for an electronic voting system
+ * @dev This contract implements:
+ *      - Self-registration management for candidates
+ *      - Admin functions for candidate management
+ *      - Importing functionality from other candidate databases
  */
 
-/// @notice Thrown when a candidate under the age of 18 tries to register
+/// @notice Thrown when a candidate under the age of 18 attempts to register
 error CandidateDatabase__NotEligible();
 
-/// @notice Thrown when a candidate attempts to register again after already being registered
-error CandidateDatabase__AlreadyRegistered();
-
-/// @notice Thrown when an unregistered candidate attempts a restricted action
+/// @notice Thrown when a non-registered candidate tries to perform a restricted action
 error CandidateDatabase__NotRegistered();
+
+/// @notice Thrown when a candidate tries to register again
+error CandidateDatabase__AlreadyRegistered();
 
 /// @notice Thrown when import operations fail
 error CandidateDatabase__ImportFailed();
@@ -28,137 +31,83 @@ error CandidateDatabase__ImportFailed();
 error CandidateDatabase__InvalidAddress();
 
 contract CandidateDatabase is ICandidateDatabase, AdminManagement {
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
     uint256 private constant MIN_ELIGIBLE_AGE = 18;
 
-    /// @notice Stores details for a single candidate
+    /**
+     * @notice Stores details for a single candidate
+     * @dev The registrationTimestamp serves as both a timestamp and a registration flag
+     *    - If > 0, candidate is registered
+     */
     struct Candidate {
         string name;
-        uint256 dateOfBirthEpoch;
-        Gender gender;
         string presentAddress;
         string email;
         string qualifications;
         string manifesto;
-        uint256 registrationTimestamp; // If > 0, candidate is registered
+        Gender gender;
+        uint256 dateOfBirthEpoch;
+        uint256 registrationTimestamp;
     }
 
+    /// @dev Main storage for candidate information
     mapping(address => Candidate) private s_candidates;
+
+    /// @dev Array of all registered candidate addresses for enumeration
     address[] private s_candidateAddresses;
 
-    /// @notice Functions with this modifier can only be called by registered candidates
-    modifier onlyRegistered() {
-        if (s_candidates[msg.sender].registrationTimestamp == 0)
+    /**
+     * @notice Ensures the candidate meets minimum age requirements
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     */
+    modifier onlyEligible(uint256 _dateOfBirthEpoch) {
+        if (ElectionUtils.calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
+            revert CandidateDatabase__NotEligible();
+        _;
+    }
+
+    /**
+     * @notice Ensures the address belongs to a registered candidate
+     * @param _candidateAddress Address to check for registration
+     */
+    modifier onlyRegistered(address _candidateAddress) {
+        if (s_candidates[_candidateAddress].registrationTimestamp == 0)
             revert CandidateDatabase__NotRegistered();
         _;
     }
 
-    /// @notice Register a new candidate
-    /// @param _name Name of the candidate
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @param _gender Gender of the candidate (0 for Male, 1 for Female)
-    /// @param _presentAddress Present address of the candidate
-    /// @param _email Email address of the candidate
-    /// @param _qualifications Educational qualifications of the candidate
-    /// @param _manifesto Election manifesto of the candidate
-    function addCandidate(
-        string memory _name,
-        uint256 _dateOfBirthEpoch,
-        Gender _gender,
-        string memory _presentAddress,
-        string memory _email,
-        string memory _qualifications,
-        string memory _manifesto
-    ) external override {
-        // Calculate age - use constant for seconds in a year
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
-
-        if (s_candidates[msg.sender].registrationTimestamp > 0)
+    /**
+     * @notice Ensures the address does not belong to an already registered candidate
+     * @param _candidateAddress Address to check for registration
+     */
+    modifier onlyNotRegistered(address _candidateAddress) {
+        if (s_candidates[_candidateAddress].registrationTimestamp > 0)
             revert CandidateDatabase__AlreadyRegistered();
-
-        s_candidates[msg.sender] = Candidate({
-            name: _name,
-            dateOfBirthEpoch: _dateOfBirthEpoch,
-            gender: _gender,
-            presentAddress: _presentAddress,
-            email: _email,
-            qualifications: _qualifications,
-            manifesto: _manifesto,
-            registrationTimestamp: block.timestamp
-        });
-
-        s_candidateAddresses.push(msg.sender);
-        emit CandidateRegistered(msg.sender);
+        _;
     }
 
-    /// @notice Update candidate information
-    /// @param _name Updated name
-    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
-    /// @param _gender Updated gender
-    /// @param _presentAddress Updated address
-    /// @param _email Updated email
-    /// @param _qualifications Updated qualifications
-    /// @param _manifesto Updated manifesto
-    function updateCandidate(
-        string memory _name,
-        uint256 _dateOfBirthEpoch,
-        Gender _gender,
-        string memory _presentAddress,
-        string memory _email,
-        string memory _qualifications,
-        string memory _manifesto
-    ) external override onlyRegistered {
-        // Verify age eligibility with the new DOB
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
-
-        Candidate storage candidate = s_candidates[msg.sender];
-        candidate.name = _name;
-        candidate.dateOfBirthEpoch = _dateOfBirthEpoch;
-        candidate.gender = _gender;
-        candidate.presentAddress = _presentAddress;
-        candidate.email = _email;
-        candidate.qualifications = _qualifications;
-        candidate.manifesto = _manifesto;
-
-        emit CandidateUpdated(msg.sender);
+    /**
+     * @notice Ensures the provided address is not the zero address
+     * @param _candidateAddress Address to validate
+     */
+    modifier onlyValidAddress(address _candidateAddress) {
+        if (_candidateAddress == address(0))
+            revert CandidateDatabase__InvalidAddress();
+        _;
     }
 
-    /// @notice Allows a registered candidate to delete their own registration
-    function deleteCandidate() external override onlyRegistered {
-        address candidateAddress = msg.sender;
-
-        // remove candidate from mapping
-        delete s_candidates[candidateAddress];
-
-        // swap candidate with last element and pop from the address array
-        uint256 length = s_candidateAddresses.length;
-        for (uint256 i = 0; i < length; ) {
-            if (s_candidateAddresses[i] == candidateAddress) {
-                s_candidateAddresses[i] = s_candidateAddresses[length - 1];
-                s_candidateAddresses.pop();
-                break;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit CandidateDeleted(candidateAddress);
-    }
-
-    /// @notice Admin function to add a candidate directly
-    /// @dev Only owner/admins can call this function
-    /// @param _candidateAddress Address of the candidate to add
-    /// @param _name Name of the candidate
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @param _gender Gender of the candidate
-    /// @param _presentAddress Present address of the candidate
-    /// @param _email Email of the candidate
-    /// @param _qualifications Qualifications of the candidate
-    /// @param _manifesto Manifesto of the candidate
-    function adminAddCandidate(
+    /**
+     * @notice Internal function to add a new candidate to the database
+     * @dev Used by both self-registration and admin functions
+     * @param _candidateAddress Address of the candidate to add
+     * @param _name Name of the candidate
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the candidate
+     * @param _presentAddress Present address of the candidate
+     * @param _email Email address of the candidate
+     * @param _qualifications Educational qualifications of the candidate
+     * @param _manifesto Election manifesto of the candidate
+     */
+    function _addCandidate(
         address _candidateAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
@@ -167,17 +116,11 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) external override onlyAdmin {
-        if (_candidateAddress == address(0))
-            revert CandidateDatabase__InvalidAddress();
-
-        // Calculate age using constant
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
-
-        if (s_candidates[_candidateAddress].registrationTimestamp > 0)
-            revert CandidateDatabase__AlreadyRegistered();
-
+    )
+        internal
+        onlyEligible(_dateOfBirthEpoch)
+        onlyNotRegistered(_candidateAddress)
+    {
         s_candidates[_candidateAddress] = Candidate({
             name: _name,
             dateOfBirthEpoch: _dateOfBirthEpoch,
@@ -190,20 +133,21 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         });
 
         s_candidateAddresses.push(_candidateAddress);
-        emit AdminAddedCandidate(_candidateAddress, msg.sender);
     }
 
-    /// @notice Admin function to update candidate details
-    /// @dev Only owner/admins can call this function
-    /// @param _candidateAddress Address of the candidate to update
-    /// @param _name Updated name
-    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
-    /// @param _gender Updated gender
-    /// @param _presentAddress Updated present address
-    /// @param _email Updated email
-    /// @param _qualifications Updated qualifications
-    /// @param _manifesto Updated manifesto
-    function adminUpdateCandidate(
+    /**
+     * @notice Internal function to update candidate details
+     * @dev Used by both self-update and admin functions
+     * @param _candidateAddress Address of the candidate to update
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated present address
+     * @param _email Updated email address
+     * @param _qualifications Updated qualifications
+     * @param _manifesto Updated manifesto
+     */
+    function _updateCandidate(
         address _candidateAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
@@ -212,14 +156,11 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string memory _email,
         string memory _qualifications,
         string memory _manifesto
-    ) external override onlyAdmin {
-        if (s_candidates[_candidateAddress].registrationTimestamp == 0)
-            revert CandidateDatabase__NotRegistered();
-
-        // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-        if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
-
+    )
+        internal
+        onlyEligible(_dateOfBirthEpoch)
+        onlyRegistered(_candidateAddress)
+    {
         Candidate storage candidate = s_candidates[_candidateAddress];
 
         // Update details but preserve registrationTimestamp
@@ -230,24 +171,20 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         candidate.email = _email;
         candidate.qualifications = _qualifications;
         candidate.manifesto = _manifesto;
-
-        emit AdminUpdatedCandidate(_candidateAddress, msg.sender);
     }
 
-    /// @notice Admin function to remove a candidate
-    /// @dev Only owner/admins can call this function
-    /// @param _candidateAddress Address of the candidate to remove
-    function adminRemoveCandidate(
+    /**
+     * @notice Internal function to remove a candidate from the database
+     * @dev Removes from mapping and updates the address array for enumeration
+     * @param _candidateAddress Address of the candidate to remove
+     */
+    function _deleteCandidate(
         address _candidateAddress
-    ) external override onlyAdmin {
-        if (s_candidates[_candidateAddress].registrationTimestamp == 0) {
-            revert CandidateDatabase__NotRegistered();
-        }
-
-        // Remove candidate from mapping
+    ) internal onlyRegistered(_candidateAddress) {
+        // remove candidate from mapping
         delete s_candidates[_candidateAddress];
 
-        // Remove from the address array using swap and pop
+        // swap candidate with last element and pop
         uint256 length = s_candidateAddresses.length;
         for (uint256 i = 0; i < length; ) {
             if (s_candidateAddresses[i] == _candidateAddress) {
@@ -259,65 +196,211 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
                 ++i;
             }
         }
+    }
 
+    /**
+     * @notice Register a new candidate in the system
+     * @dev Self-registration function for candidates
+     * @param _name Name of the candidate
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the candidate (0 for Male, 1 for Female)
+     * @param _presentAddress Present address of the candidate
+     * @param _email Email address of the candidate
+     * @param _qualifications Educational qualifications of the candidate
+     * @param _manifesto Election manifesto of the candidate
+     */
+    function addCandidate(
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
+    ) external override {
+        _addCandidate(
+            msg.sender,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _qualifications,
+            _manifesto
+        );
+        emit CandidateRegistered(msg.sender);
+    }
+
+    /**
+     * @notice Update candidate information
+     * @dev Self-update function for registered candidates
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated address
+     * @param _email Updated email
+     * @param _qualifications Updated qualifications
+     * @param _manifesto Updated manifesto
+     */
+    function updateCandidate(
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
+    ) external override {
+        _updateCandidate(
+            msg.sender,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _qualifications,
+            _manifesto
+        );
+        emit CandidateUpdated(msg.sender);
+    }
+
+    /**
+     * @notice Allows a registered candidate to delete their own registration
+     * @dev Self-removal function for registered candidates
+     */
+    function deleteCandidate() external override {
+        _deleteCandidate(msg.sender);
+        emit CandidateDeleted(msg.sender);
+    }
+
+    /**
+     * @notice Admin function to add a candidate directly
+     * @dev Only owner/admins can call this function
+     * @param _candidateAddress Address of the candidate to add
+     * @param _name Name of the candidate
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the candidate
+     * @param _presentAddress Present address of the candidate
+     * @param _email Email address of the candidate
+     * @param _qualifications Educational qualifications of the candidate
+     * @param _manifesto Election manifesto of the candidate
+     */
+    function adminAddCandidate(
+        address _candidateAddress,
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
+    ) external override onlyAdmin onlyValidAddress(_candidateAddress) {
+        _addCandidate(
+            _candidateAddress,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _qualifications,
+            _manifesto
+        );
+        emit AdminAddedCandidate(_candidateAddress, msg.sender);
+    }
+
+    /**
+     * @notice Admin function to update candidate details
+     * @dev Only owner/admins can call this function
+     * @param _candidateAddress Address of the candidate to update
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated present address
+     * @param _email Updated email address
+     * @param _qualifications Updated qualifications
+     * @param _manifesto Updated manifesto
+     */
+    function adminUpdateCandidate(
+        address _candidateAddress,
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        string memory _qualifications,
+        string memory _manifesto
+    ) external override onlyAdmin onlyValidAddress(_candidateAddress) {
+        _updateCandidate(
+            _candidateAddress,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _qualifications,
+            _manifesto
+        );
+        emit AdminUpdatedCandidate(_candidateAddress, msg.sender);
+    }
+
+    /**
+     * @notice Admin function to remove a candidate
+     * @dev Only owner/admins can call this function
+     * @param _candidateAddress Address of the candidate to remove
+     */
+    function adminRemoveCandidate(
+        address _candidateAddress
+    ) external override onlyAdmin onlyValidAddress(_candidateAddress) {
+        _deleteCandidate(_candidateAddress);
         emit AdminRemovedCandidate(_candidateAddress, msg.sender);
     }
 
-    /// @notice Import a specific candidate from another CandidateDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source CandidateDatabase contract
-    /// @param _candidateAddress The address of the candidate to import
+    /**
+     * @notice Import a specific candidate from another CandidateDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source CandidateDatabase contract
+     * @param _candidateAddress The address of the candidate to import
+     */
     function adminImportCandidate(
         address _sourceContract,
         address _candidateAddress
-    ) external override onlyAdmin {
-        // Skip if candidate is already registered in this contract
-        if (s_candidates[_candidateAddress].registrationTimestamp > 0) {
-            revert CandidateDatabase__AlreadyRegistered();
-        }
-
+    ) external override onlyAdmin onlyNotRegistered(_candidateAddress) {
         ICandidateDatabase source = ICandidateDatabase(_sourceContract);
 
         try source.getCandidateDetails(_candidateAddress) returns (
             string memory name,
             uint256 dateOfBirthEpoch,
-            Gender gender,
+            ICandidateDatabase.Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 /* registrationTimestamp */
         ) {
-            // Check age eligibility
-            uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                SECONDS_PER_YEAR;
-            if (age < MIN_ELIGIBLE_AGE) revert CandidateDatabase__NotEligible();
+            _addCandidate(
+                _candidateAddress,
+                name,
+                dateOfBirthEpoch,
+                gender,
+                presentAddress,
+                email,
+                qualifications,
+                manifesto
+            );
 
-            // Add candidate to this contract - preserve original registration time
-            s_candidates[_candidateAddress] = Candidate({
-                name: name,
-                dateOfBirthEpoch: dateOfBirthEpoch,
-                gender: gender,
-                presentAddress: presentAddress,
-                email: email,
-                qualifications: qualifications,
-                manifesto: manifesto,
-                registrationTimestamp: registrationTimestamp
-            });
-
-            s_candidateAddresses.push(_candidateAddress);
-            emit CandidateRegistered(_candidateAddress);
-
+            emit AdminAddedCandidate(_candidateAddress, msg.sender);
             emit CandidatesImported(_sourceContract, 1);
         } catch {
             revert CandidateDatabase__ImportFailed();
         }
     }
 
-    /// @notice Batch import selected candidates from another CandidateDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source CandidateDatabase contract
-    /// @param _candidateAddresses Array of candidate addresses to import
+    /**
+     * @notice Batch import selected candidates from another CandidateDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source CandidateDatabase contract
+     * @param _candidateAddresses Array of candidate addresses to import
+     */
     function adminBatchImportCandidates(
         address _sourceContract,
         address[] calldata _candidateAddresses
@@ -340,40 +423,29 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
                 uint256 dateOfBirthEpoch,
-                Gender gender,
+                ICandidateDatabase.Gender gender,
                 string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
-                uint256 registrationTimestamp
+                uint256 /* registrationTimestamp */
             ) {
-                // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                    SECONDS_PER_YEAR;
-                if (age < MIN_ELIGIBLE_AGE) {
-                    unchecked {
-                        ++i;
-                    }
-                    continue; // Skip ineligible candidates
-                }
+                _addCandidate(
+                    candidateAddress,
+                    name,
+                    dateOfBirthEpoch,
+                    gender,
+                    presentAddress,
+                    email,
+                    qualifications,
+                    manifesto
+                );
 
-                // Add candidate to this contract - preserve original registration time
-                s_candidates[candidateAddress] = Candidate({
-                    name: name,
-                    dateOfBirthEpoch: dateOfBirthEpoch,
-                    gender: gender,
-                    presentAddress: presentAddress,
-                    email: email,
-                    qualifications: qualifications,
-                    manifesto: manifesto,
-                    registrationTimestamp: registrationTimestamp
-                });
+                emit AdminAddedCandidate(candidateAddress, msg.sender);
 
-                s_candidateAddresses.push(candidateAddress);
-                emit CandidateRegistered(candidateAddress);
                 unchecked {
-                    ++importedCount;
                     ++i;
+                    ++importedCount;
                 }
             } catch {
                 // Continue to next candidate if this one fails
@@ -387,9 +459,11 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         emit CandidatesImported(_sourceContract, importedCount);
     }
 
-    /// @notice Import all candidates from another CandidateDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source CandidateDatabase contract
+    /**
+     * @notice Import all candidates from another CandidateDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source CandidateDatabase contract
+     */
     function adminImportAllCandidates(
         address _sourceContract
     ) external override onlyAdmin {
@@ -420,40 +494,28 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             try source.getCandidateDetails(candidateAddress) returns (
                 string memory name,
                 uint256 dateOfBirthEpoch,
-                Gender gender,
+                ICandidateDatabase.Gender gender,
                 string memory presentAddress,
                 string memory email,
                 string memory qualifications,
                 string memory manifesto,
-                uint256 registrationTimestamp
+                uint256 /* registrationTimestamp */
             ) {
-                // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                    SECONDS_PER_YEAR;
-                if (age < MIN_ELIGIBLE_AGE) {
-                    unchecked {
-                        ++i;
-                    }
-                    continue; // Skip ineligible candidates
-                }
+                _addCandidate(
+                    candidateAddress,
+                    name,
+                    dateOfBirthEpoch,
+                    gender,
+                    presentAddress,
+                    email,
+                    qualifications,
+                    manifesto
+                );
 
-                // Add candidate to this contract - preserve original registration time
-                s_candidates[candidateAddress] = Candidate({
-                    name: name,
-                    dateOfBirthEpoch: dateOfBirthEpoch,
-                    gender: gender,
-                    presentAddress: presentAddress,
-                    email: email,
-                    qualifications: qualifications,
-                    manifesto: manifesto,
-                    registrationTimestamp: registrationTimestamp
-                });
-
-                s_candidateAddresses.push(candidateAddress);
-                emit CandidateRegistered(candidateAddress);
+                emit AdminAddedCandidate(candidateAddress, msg.sender);
                 unchecked {
-                    ++importedCount;
                     ++i;
+                    ++importedCount;
                 }
             } catch {
                 // Continue to next candidate if this one fails
@@ -467,31 +529,25 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         emit CandidatesImported(_sourceContract, importedCount);
     }
 
-    /// @notice Calculate age from date of birth
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @return Age in years
-    function calculateAge(
-        uint256 _dateOfBirthEpoch
-    ) public view returns (uint256) {
-        return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-    }
-
-    /// @notice Get details of a specific candidate (publicly accessible)
-    /// @param _candidateAddress Address of the candidate
-    /// @return name The candidate's name
-    /// @return dateOfBirthEpoch The candidate's date of birth as Unix timestamp
-    /// @return gender The candidate's gender
-    /// @return presentAddress The candidate's address
-    /// @return email The candidate's email
-    /// @return qualifications The candidate's qualifications
-    /// @return manifesto The candidate's manifesto
-    /// @return registrationTimestamp When the candidate registered
+    /**
+     * @notice Get details of a specific candidate (publicly accessible)
+     * @param _candidateAddress Address of the candidate
+     * @return name The candidate's name
+     * @return dateOfBirthEpoch The candidate's date of birth as Unix timestamp
+     * @return gender The candidate's gender
+     * @return presentAddress The candidate's address
+     * @return email The candidate's email
+     * @return qualifications The candidate's qualifications
+     * @return manifesto The candidate's manifesto
+     * @return registrationTimestamp When the candidate registered
+     */
     function getCandidateDetails(
         address _candidateAddress
     )
         public
         view
         override
+        onlyRegistered(_candidateAddress)
         returns (
             string memory name,
             uint256 dateOfBirthEpoch,
@@ -503,9 +559,6 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
             uint256 registrationTimestamp
         )
     {
-        if (s_candidates[_candidateAddress].registrationTimestamp == 0) {
-            revert CandidateDatabase__NotRegistered();
-        }
         Candidate memory candidate = s_candidates[_candidateAddress];
         return (
             candidate.name,
@@ -519,31 +572,22 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         );
     }
 
-    /// @notice Get the list of all registered candidate addresses (publicly accessible)
-    /// @return Array of candidate wallet addresses
-    function getAllCandidates()
-        public
-        view
-        override
-        returns (address[] memory)
-    {
-        return s_candidateAddresses;
-    }
-
-    /// @notice Get your own candidate details
-    /// @return name Your name
-    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
-    /// @return gender Your gender
-    /// @return presentAddress Your present address
-    /// @return email Your email
-    /// @return qualifications Your qualifications
-    /// @return manifesto Your manifesto
-    /// @return registrationTimestamp When you registered
+    /**
+     * @notice Get your own candidate details
+     * @return name Your name
+     * @return dateOfBirthEpoch Your date of birth as Unix timestamp
+     * @return gender Your gender
+     * @return presentAddress Your present address
+     * @return email Your email
+     * @return qualifications Your qualifications
+     * @return manifesto Your manifesto
+     * @return registrationTimestamp When you registered
+     */
     function getMyDetails()
         public
         view
         override
-        onlyRegistered
+        onlyRegistered(msg.sender)
         returns (
             string memory name,
             uint256 dateOfBirthEpoch,
@@ -568,8 +612,31 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         );
     }
 
-    /// @notice Get your own registration status
-    /// @return isRegistered Whether you are registered as a candidate
+    /**
+     * @notice Get the list of all registered candidate addresses (publicly accessible)
+     * @return List of all candidate addresses
+     */
+    function getAllCandidates()
+        public
+        view
+        override
+        returns (address[] memory)
+    {
+        return s_candidateAddresses;
+    }
+
+    /**
+     * @notice Get the total number of registered candidates
+     * @return count The count of registered candidates
+     */
+    function getCandidateCount() public view override returns (uint256 count) {
+        return s_candidateAddresses.length;
+    }
+
+    /**
+     * @notice Get your own registration status
+     * @return isRegistered Whether you are registered as a candidate
+     */
     function getMyRegistrationStatus()
         public
         view
@@ -579,24 +646,30 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         return s_candidates[msg.sender].registrationTimestamp > 0;
     }
 
-    /// @notice Get a candidate's registration status
-    /// @param _candidateAddress Address of the candidate
-    /// @return isRegistered Whether the candidate is registered
+    /**
+     * @notice Get a candidate's registration status
+     * @param _candidateAddress Address of the candidate
+     * @return isRegistered Whether the candidate is registered
+     */
     function getCandidateRegistrationStatus(
         address _candidateAddress
     ) public view override returns (bool isRegistered) {
         return s_candidates[_candidateAddress].registrationTimestamp > 0;
     }
 
-    /// @notice Get number of registered candidates
-    /// @return count The number of registered candidates
-    function getCandidateCount() public view override returns (uint256 count) {
-        return s_candidateAddresses.length;
-    }
-
-    /// @notice Get your current age based on stored date of birth
-    /// @return Your current age in years
-    function getMyAge() public view onlyRegistered returns (uint256) {
-        return calculateAge(s_candidates[msg.sender].dateOfBirthEpoch);
+    /**
+     * @notice Get your current age based on stored date of birth
+     * @return age Your current age in years
+     */
+    function getMyAge()
+        public
+        view
+        onlyRegistered(msg.sender)
+        returns (uint256 age)
+    {
+        return
+            ElectionUtils.calculateAge(
+                s_candidates[msg.sender].dateOfBirthEpoch
+            );
     }
 }
