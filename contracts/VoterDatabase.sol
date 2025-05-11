@@ -14,6 +14,7 @@ pragma solidity ^0.8.8;
 
 import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
 import {AdminManagement} from "./shared/AdminManagement.sol";
+import {ElectionUtils} from "./lib/ElectionUtils.sol";
 
 /// @notice Thrown when a user under the age of 18 attempts to register
 error VoterDatabase__NotEligible();
@@ -34,7 +35,6 @@ error VoterDatabase__ImportFailed();
 error VoterDatabase__InvalidAddress();
 
 contract VoterDatabase is IVoterDatabase, AdminManagement {
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
     uint256 private constant MIN_ELIGIBLE_AGE = 18;
 
     /**
@@ -63,7 +63,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @param _dateOfBirthEpoch Date of birth as Unix timestamp
      */
     modifier onlyEligible(uint256 _dateOfBirthEpoch) {
-        if (_calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
+        if (ElectionUtils.calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
             revert VoterDatabase__NotEligible();
         _;
     }
@@ -604,17 +604,6 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     }
 
     /**
-     * @notice Calculate age from date of birth
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
-     * @return Age in years
-     */
-    function _calculateAge(
-        uint256 _dateOfBirthEpoch
-    ) internal view returns (uint256) {
-        return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
-    }
-
-    /**
      * @notice Get your own voter details
      * @return name Your name
      * @return dateOfBirthEpoch Your date of birth as Unix timestamp
@@ -700,6 +689,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         onlyRegistered(msg.sender)
         returns (uint256 age)
     {
-        return _calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
+        return
+            ElectionUtils.calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
     }
 }
