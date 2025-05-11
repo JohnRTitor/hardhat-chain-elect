@@ -544,7 +544,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function getCandidateDetails(
         address _candidateAddress
     )
-        public
+        external
         view
         override
         onlyRegistered(_candidateAddress)
@@ -584,7 +584,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @return registrationTimestamp When you registered
      */
     function getMyDetails()
-        public
+        external
         view
         override
         onlyRegistered(msg.sender)
@@ -617,7 +617,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @return List of all candidate addresses
      */
     function getAllCandidates()
-        public
+        external
         view
         override
         returns (address[] memory)
@@ -629,7 +629,12 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @notice Get the total number of registered candidates
      * @return count The count of registered candidates
      */
-    function getCandidateCount() public view override returns (uint256 count) {
+    function getCandidateCount()
+        external
+        view
+        override
+        returns (uint256 count)
+    {
         return s_candidateAddresses.length;
     }
 
@@ -638,7 +643,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @return isRegistered Whether you are registered as a candidate
      */
     function getMyRegistrationStatus()
-        public
+        external
         view
         override
         returns (bool isRegistered)
@@ -653,7 +658,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      */
     function getCandidateRegistrationStatus(
         address _candidateAddress
-    ) public view override returns (bool isRegistered) {
+    ) external view override returns (bool isRegistered) {
         return s_candidates[_candidateAddress].registrationTimestamp > 0;
     }
 
@@ -662,7 +667,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @return age Your current age in years
      */
     function getMyAge()
-        public
+        external
         view
         onlyRegistered(msg.sender)
         returns (uint256 age)

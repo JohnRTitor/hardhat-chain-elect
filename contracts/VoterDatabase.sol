@@ -546,7 +546,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function adminGetVoterDetails(
         address _voterAddress
     )
-        public
+        external
         view
         override
         onlyAdmin
@@ -579,7 +579,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return count The count of registered voters
      */
     function adminGetVoterCount()
-        public
+        external
         view
         override
         onlyAdmin
@@ -594,7 +594,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return voterAddresses Array of addresses of all registered voters
      */
     function adminGetAllVoters()
-        public
+        external
         view
         override
         onlyAdmin
@@ -614,7 +614,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return registrationTimestamp When you registered
      */
     function getMyDetails()
-        public
+        external
         view
         override
         onlyRegistered(msg.sender)
@@ -645,7 +645,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return isRegistered Whether you are registered to vote
      */
     function getMyRegistrationStatus()
-        public
+        external
         view
         override
         returns (bool isRegistered)
@@ -661,7 +661,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      */
     function adminGetRegistrationStatus(
         address _voterAddress
-    ) public view override onlyAdmin returns (bool isRegistered) {
+    ) external view override onlyAdmin returns (bool isRegistered) {
         return s_voters[_voterAddress].registrationTimestamp > 0;
     }
 
@@ -670,7 +670,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return hasVoted Whether you have voted at least once
      */
     function getMyVotingStatus()
-        public
+        external
         view
         override
         onlyRegistered(msg.sender)
@@ -684,7 +684,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @return age Your current age in years
      */
     function getMyAge()
-        public
+        external
         view
         onlyRegistered(msg.sender)
         returns (uint256 age)
