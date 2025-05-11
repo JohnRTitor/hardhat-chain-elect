@@ -4,10 +4,12 @@ pragma solidity ^0.8.8;
 /**
  * @title VoterDatabase Contract
  * @author Masum Reza
- * @notice This contract manages voter registration and voting status
- * @notice Intended for use within an electronic voting machine/system
- * @dev functions specifically prepended with admin may only be called by the contract owner
- * @dev other functions are accessible to all users, except otherwise specified, see the provided modifier
+ * @notice This contract manages voter registration and voting status for an electronic voting system
+ * @dev This contract implements:
+ *      - Self-registration management for voters
+ *      - Admin functions for voter management
+ *      - Importing functionality from other voter databases
+ *      - Privacy protection through access control
  */
 
 import {IVoterDatabase} from "./interfaces/IVoterDatabase.sol";
@@ -35,7 +37,11 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     uint256 private constant SECONDS_PER_YEAR = 365 days;
     uint256 private constant MIN_ELIGIBLE_AGE = 18;
 
-    /// @notice Stores details for a single voter
+    /**
+     * @notice Stores details for a single voter
+     * @dev The registrationTimestamp serves as both a timestamp and a registration flag
+     *    - If > 0, voter is registered
+     */
     struct Voter {
         string name;
         string presentAddress;
@@ -43,122 +49,66 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         Gender gender;
         uint256 timesVoted;
         uint256 dateOfBirthEpoch;
-        uint256 registrationTimestamp; // If > 0, voter is registered
+        uint256 registrationTimestamp;
     }
 
+    /// @dev Main storage for voter information
     mapping(address => Voter) private s_voters;
+
+    /// @dev Array of all registered voter addresses for enumeration
     address[] private s_voterAddresses;
 
-    /// @notice Functions with this modifier can only be called by registered voters
-    modifier onlyRegistered() {
-        if (s_voters[msg.sender].registrationTimestamp == 0)
+    /**
+     * @notice Ensures the user meets minimum age requirements
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     */
+    modifier onlyEligible(uint256 _dateOfBirthEpoch) {
+        if (_calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
+            revert VoterDatabase__NotEligible();
+        _;
+    }
+
+    /**
+     * @notice Ensures the address belongs to a registered voter
+     * @param _voterAddress Address to check for registration
+     */
+    modifier onlyRegistered(address _voterAddress) {
+        if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
         _;
     }
 
-    /// @notice Register a new voter
-    /// @param _name Name of the voter
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @param _gender Gender of the voter (0 for Male, 1 for Female)
-    /// @param _presentAddress Present address of the voter
-    /// @param _email Email address of the voter
-    function addVoter(
-        string memory _name,
-        uint256 _dateOfBirthEpoch,
-        Gender _gender,
-        string memory _presentAddress,
-        string memory _email
-    ) external override {
-        // Calculate age using constant for seconds in a year
-        uint256 age = _calculateAge(_dateOfBirthEpoch);
-        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
-
-        if (s_voters[msg.sender].registrationTimestamp > 0)
+    /**
+     * @notice Ensures the address does not belong to an already registered voter
+     * @param _voterAddress Address to check for registration
+     */
+    modifier onlyNotRegistered(address _voterAddress) {
+        if (s_voters[_voterAddress].registrationTimestamp > 0)
             revert VoterDatabase__AlreadyRegistered();
-
-        s_voters[msg.sender] = Voter({
-            name: _name,
-            dateOfBirthEpoch: _dateOfBirthEpoch,
-            gender: _gender,
-            presentAddress: _presentAddress,
-            email: _email,
-            timesVoted: 0,
-            registrationTimestamp: block.timestamp
-        });
-
-        s_voterAddresses.push(msg.sender);
-        emit VoterRegistered(msg.sender);
+        _;
     }
 
-    /// @notice Update voter information (only if registered and not yet voted)
-    /// @param _name Updated name
-    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
-    /// @param _gender Updated gender
-    /// @param _presentAddress Updated address
-    /// @param _email Updated email
-    function updateVoter(
-        string memory _name,
-        uint256 _dateOfBirthEpoch,
-        Gender _gender,
-        string memory _presentAddress,
-        string memory _email
-    ) external override onlyRegistered {
-        if (s_voters[msg.sender].timesVoted > 0)
-            revert VoterDatabase__CannotUpdateAfterVoting();
-
-        // Verify age eligibility with the new DOB
-        uint256 age = _calculateAge(_dateOfBirthEpoch);
-        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
-
-        Voter storage voter = s_voters[msg.sender];
-        voter.name = _name;
-        voter.dateOfBirthEpoch = _dateOfBirthEpoch;
-        voter.gender = _gender;
-        voter.presentAddress = _presentAddress;
-        voter.email = _email;
-
-        emit VoterUpdated(msg.sender);
+    /**
+     * @notice Ensures the provided address is not the zero address
+     * @param _voterAddress Address to validate
+     */
+    modifier onlyValidAddress(address _voterAddress) {
+        if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
+        _;
     }
 
-    /// @notice Allows a registered voter to delete their own registration
-    function deleteVoter() external override onlyRegistered {
-        address voterAddress = msg.sender;
-
-        // remove voter from mapping
-        delete s_voters[voterAddress];
-
-        // swap voter with last element and pop
-        uint256 length = s_voterAddresses.length;
-        for (uint256 i = 0; i < length; ) {
-            if (s_voterAddresses[i] == voterAddress) {
-                s_voterAddresses[i] = s_voterAddresses[length - 1];
-                s_voterAddresses.pop();
-                break;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit VoterDeleted(voterAddress);
-    }
-
-    /// @notice Mark a voter as having voted
-    /// @dev Should be called by the election contract/unit tests
-    function markVoted() external override onlyRegistered {
-        s_voters[msg.sender].timesVoted += 1;
-    }
-
-    /// @notice Admin function to add a voter directly
-    /// @dev Only owner/admins can call this function
-    /// @param _voterAddress Address of the voter to add
-    /// @param _name Name of the voter
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @param _gender Gender of the voter
-    /// @param _presentAddress Present address of the voter
-    /// @param _email Email address of the voter
-    /// @param _timesVoted Initial voting status of the voter
-    function adminAddVoter(
+    /**
+     * @notice Internal function to add a new voter to the database
+     * @dev Used by both self-registration and admin functions
+     * @param _voterAddress Address of the voter to add
+     * @param _name Name of the voter
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the voter
+     * @param _presentAddress Present address of the voter
+     * @param _email Email address of the voter
+     * @param _timesVoted Initial voting status count (typically 0 for new registrations)
+     */
+    function _addVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
@@ -166,42 +116,36 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         string memory _presentAddress,
         string memory _email,
         uint256 _timesVoted
-    ) external override onlyAdmin {
-        if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
-
-        // Check if already registered
-        if (s_voters[_voterAddress].registrationTimestamp > 0)
-            revert VoterDatabase__AlreadyRegistered();
-
-        // Check age eligibility
-        uint256 age = _calculateAge(_dateOfBirthEpoch);
-        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
-
+    )
+        internal
+        onlyEligible(_dateOfBirthEpoch)
+        onlyNotRegistered(_voterAddress)
+    {
         s_voters[_voterAddress] = Voter({
             name: _name,
             dateOfBirthEpoch: _dateOfBirthEpoch,
-            registrationTimestamp: block.timestamp,
             gender: _gender,
             presentAddress: _presentAddress,
             email: _email,
-            timesVoted: _timesVoted
+            timesVoted: _timesVoted,
+            registrationTimestamp: block.timestamp
         });
 
         s_voterAddresses.push(_voterAddress);
-
-        emit AdminAddedVoter(_voterAddress, msg.sender);
     }
 
-    /// @notice Admin function to update voter details (can update even if voter has voted)
-    /// @dev Only owner/admins can call this function
-    /// @param _voterAddress Address of the voter to update
-    /// @param _name Updated name
-    /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
-    /// @param _gender Updated gender
-    /// @param _presentAddress Updated present address
-    /// @param _email Updated email address
-    /// @param _timesVoted Updated voting status
-    function adminUpdateVoter(
+    /**
+     * @notice Internal function to update voter details
+     * @dev Used by both self-update and admin functions
+     * @param _voterAddress Address of the voter to update
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated present address
+     * @param _email Updated email address
+     * @param _timesVoted Updated times voted count (typically preserved/unchanged in regular updates)
+     */
+    function _updateVoter(
         address _voterAddress,
         string memory _name,
         uint256 _dateOfBirthEpoch,
@@ -209,14 +153,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         string memory _presentAddress,
         string memory _email,
         uint256 _timesVoted
-    ) external override onlyAdmin {
-        if (s_voters[_voterAddress].registrationTimestamp == 0)
-            revert VoterDatabase__NotRegistered();
-
-        // Check age eligibility
-        uint256 age = _calculateAge(_dateOfBirthEpoch);
-        if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
-
+    ) internal onlyEligible(_dateOfBirthEpoch) onlyRegistered(_voterAddress) {
         Voter storage voter = s_voters[_voterAddress];
 
         // Update details but preserve registrationTimestamp
@@ -226,23 +163,20 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         voter.presentAddress = _presentAddress;
         voter.email = _email;
         voter.timesVoted = _timesVoted;
-
-        emit AdminUpdatedVoter(_voterAddress, msg.sender);
     }
 
-    /// @notice Admin function to remove a voter
-    /// @dev Only owner/admins can call this function
-    /// @param _voterAddress Address of the voter to remove
-    function adminRemoveVoter(
+    /**
+     * @notice Internal function to remove a voter from the database
+     * @dev Removes from mapping and updates the address array for enumeration
+     * @param _voterAddress Address of the voter to remove
+     */
+    function _deleteVoter(
         address _voterAddress
-    ) external override onlyAdmin {
-        if (s_voters[_voterAddress].registrationTimestamp == 0)
-            revert VoterDatabase__NotRegistered();
-
-        // Remove voter from mapping
+    ) internal onlyRegistered(_voterAddress) {
+        // remove voter from mapping
         delete s_voters[_voterAddress];
 
-        // Remove from the address array using swap and pop
+        // swap voter with last element and pop
         uint256 length = s_voterAddresses.length;
         for (uint256 i = 0; i < length; ) {
             if (s_voterAddresses[i] == _voterAddress) {
@@ -254,34 +188,190 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 ++i;
             }
         }
+    }
 
+    /**
+     * @notice Register a new voter in the system
+     * @dev Self-registration function for first-time voters
+     * @param _name Name of the voter
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the voter (0 for Male, 1 for Female)
+     * @param _presentAddress Present address of the voter
+     * @param _email Email address of the voter
+     */
+    function addVoter(
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email
+    ) external override {
+        _addVoter(
+            msg.sender,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            0
+        );
+        emit VoterRegistered(msg.sender);
+    }
+
+    /**
+     * @notice Update voter information
+     * @dev Self-update function for registered voters
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated address
+     * @param _email Updated email
+     */
+    function updateVoter(
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email
+    ) external override {
+        Voter storage voter = s_voters[msg.sender];
+        if (voter.timesVoted > 0) {
+            revert VoterDatabase__CannotUpdateAfterVoting();
+        }
+
+        _updateVoter(
+            msg.sender,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            voter.timesVoted // Preserve existing voting status
+        );
+
+        emit VoterUpdated(msg.sender);
+    }
+
+    /**
+     * @notice Allows a registered voter to delete their own registration
+     * @dev Self-removal function for registered voters
+     */
+    function deleteVoter() external override onlyRegistered(msg.sender) {
+        Voter storage voter = s_voters[msg.sender];
+        if (voter.timesVoted > 0) {
+            revert VoterDatabase__CannotUpdateAfterVoting();
+        }
+
+        _deleteVoter(msg.sender);
+        emit VoterDeleted(msg.sender);
+    }
+
+    /**
+     * @notice Mark a voter as having voted
+     * @dev Should be called by the election contract
+     */
+    function markVoted() external override onlyRegistered(msg.sender) {
+        s_voters[msg.sender].timesVoted += 1;
+    }
+
+    /**
+     * @notice Admin function to add a voter directly
+     * @dev Only owner/admins can call this function
+     * @param _voterAddress Address of the voter to add
+     * @param _name Name of the voter
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _gender Gender of the voter
+     * @param _presentAddress Present address of the voter
+     * @param _email Email address of the voter
+     * @param _timesVoted Initial voting status of the voter
+     */
+    function adminAddVoter(
+        address _voterAddress,
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        uint256 _timesVoted
+    ) external override onlyAdmin onlyValidAddress(_voterAddress) {
+        _addVoter(
+            _voterAddress,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _timesVoted
+        );
+        emit AdminAddedVoter(_voterAddress, msg.sender);
+    }
+
+    /**
+     * @notice Admin function to update voter details
+     * @dev Only owner/admins can call this function, can update even if voter has voted
+     * @param _voterAddress Address of the voter to update
+     * @param _name Updated name
+     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _gender Updated gender
+     * @param _presentAddress Updated present address
+     * @param _email Updated email address
+     * @param _timesVoted Updated voting status
+     */
+    function adminUpdateVoter(
+        address _voterAddress,
+        string memory _name,
+        uint256 _dateOfBirthEpoch,
+        Gender _gender,
+        string memory _presentAddress,
+        string memory _email,
+        uint256 _timesVoted
+    ) external override onlyAdmin onlyValidAddress(_voterAddress) {
+        _updateVoter(
+            _voterAddress,
+            _name,
+            _dateOfBirthEpoch,
+            _gender,
+            _presentAddress,
+            _email,
+            _timesVoted
+        );
+        emit AdminUpdatedVoter(_voterAddress, msg.sender);
+    }
+
+    /**
+     * @notice Admin function to remove a voter
+     * @dev Only owner/admins can call this function
+     * @param _voterAddress Address of the voter to remove
+     */
+    function adminRemoveVoter(
+        address _voterAddress
+    ) external override onlyAdmin onlyValidAddress(_voterAddress) {
+        _deleteVoter(_voterAddress);
         emit AdminRemovedVoter(_voterAddress, msg.sender);
     }
 
-    /// @notice Admin function to toggle a voter's voting status
-    /// @dev Only owner/admins can call this function
-    /// @param _voterAddress Address of the voter
-    function adminMarkVoted(address _voterAddress) external override onlyAdmin {
-        if (s_voters[_voterAddress].registrationTimestamp == 0)
-            revert VoterDatabase__NotRegistered();
-
+    /**
+     * @notice Admin function to mark a voter as having voted
+     * @dev Only owner/admins can call this function
+     * @param _voterAddress Address of the voter
+     */
+    function adminMarkVoted(
+        address _voterAddress
+    ) external override onlyAdmin onlyRegistered(_voterAddress) {
         s_voters[_voterAddress].timesVoted += 1;
         emit AdminUpdatedVotingStatus(_voterAddress, msg.sender);
     }
 
-    /// @notice Import a specific voter from another VoterDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source VoterDatabase contract
-    /// @param _voterAddress The address of the voter to import
+    /**
+     * @notice Import a specific voter from another VoterDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source VoterDatabase contract
+     * @param _voterAddress The address of the voter to import
+     */
     function adminImportVoter(
         address _sourceContract,
         address _voterAddress
-    ) external override onlyAdmin {
-        // Skip if voter is already registered in this contract
-        if (s_voters[_voterAddress].registrationTimestamp > 0) {
-            revert VoterDatabase__AlreadyRegistered();
-        }
-
+    ) external override onlyAdmin onlyNotRegistered(_voterAddress) {
         IVoterDatabase source = IVoterDatabase(_sourceContract);
 
         try source.adminGetVoterDetails(_voterAddress) returns (
@@ -293,34 +383,29 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 timesVoted,
             uint256 /* registrationTimestamp */
         ) {
-            // Check age eligibility
-            uint256 age = _calculateAge(dateOfBirthEpoch);
-            if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
+            _addVoter(
+                _voterAddress,
+                name,
+                dateOfBirthEpoch,
+                gender,
+                presentAddress,
+                email,
+                timesVoted
+            );
 
-            // Add voter to this contract
-            s_voters[_voterAddress] = Voter({
-                name: name,
-                dateOfBirthEpoch: dateOfBirthEpoch,
-                registrationTimestamp: block.timestamp,
-                gender: Gender(uint(gender)),
-                presentAddress: presentAddress,
-                email: email,
-                timesVoted: timesVoted
-            });
-
-            s_voterAddresses.push(_voterAddress);
-            emit VoterRegistered(_voterAddress);
-
+            emit AdminAddedVoter(_voterAddress, msg.sender);
             emit VotersImported(_sourceContract, 1);
         } catch {
             revert VoterDatabase__ImportFailed();
         }
     }
 
-    /// @notice Batch import selected voters from another VoterDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source VoterDatabase contract
-    /// @param _voterAddresses Array of voter addresses to import
+    /**
+     * @notice Batch import selected voters from another VoterDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source VoterDatabase contract
+     * @param _voterAddresses Array of voter addresses to import
+     */
     function adminBatchImportVoters(
         address _sourceContract,
         address[] calldata _voterAddresses
@@ -349,28 +434,18 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
-                // Check age eligibility
-                uint256 age = _calculateAge(dateOfBirthEpoch);
-                if (age < MIN_ELIGIBLE_AGE) {
-                    unchecked {
-                        ++i;
-                    }
-                    continue; // Skip ineligible voters
-                }
+                _addVoter(
+                    voterAddress,
+                    name,
+                    dateOfBirthEpoch,
+                    gender,
+                    presentAddress,
+                    email,
+                    timesVoted
+                );
 
-                // Add voter to this contract
-                s_voters[voterAddress] = Voter({
-                    name: name,
-                    dateOfBirthEpoch: dateOfBirthEpoch,
-                    registrationTimestamp: block.timestamp,
-                    gender: Gender(uint(gender)),
-                    presentAddress: presentAddress,
-                    email: email,
-                    timesVoted: timesVoted
-                });
+                emit AdminAddedVoter(voterAddress, msg.sender);
 
-                s_voterAddresses.push(voterAddress);
-                emit VoterRegistered(voterAddress);
                 unchecked {
                     ++importedCount;
                     ++i;
@@ -387,9 +462,11 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         emit VotersImported(_sourceContract, importedCount);
     }
 
-    /// @notice Import all voters from another VoterDatabase contract
-    /// @dev Only owner/admins can call this function
-    /// @param _sourceContract The address of the source VoterDatabase contract
+    /**
+     * @notice Import all voters from another VoterDatabase contract
+     * @dev Only owner/admins can call this function
+     * @param _sourceContract The address of the source VoterDatabase contract
+     */
     function adminImportAllVoters(
         address _sourceContract
     ) external override onlyAdmin {
@@ -426,28 +503,18 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
-                // Check age eligibility
-                uint256 age = _calculateAge(dateOfBirthEpoch);
-                if (age < MIN_ELIGIBLE_AGE) {
-                    unchecked {
-                        ++i;
-                    }
-                    continue; // Skip ineligible voters
-                }
+                _addVoter(
+                    voterAddress,
+                    name,
+                    dateOfBirthEpoch,
+                    gender,
+                    presentAddress,
+                    email,
+                    timesVoted
+                );
 
-                // Add voter to this contract
-                s_voters[voterAddress] = Voter({
-                    name: name,
-                    dateOfBirthEpoch: dateOfBirthEpoch,
-                    registrationTimestamp: block.timestamp,
-                    gender: Gender(uint(gender)),
-                    presentAddress: presentAddress,
-                    email: email,
-                    timesVoted: timesVoted
-                });
+                emit AdminAddedVoter(voterAddress, msg.sender);
 
-                s_voterAddresses.push(voterAddress);
-                emit VoterRegistered(voterAddress);
                 unchecked {
                     ++importedCount;
                     ++i;
@@ -464,15 +531,18 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         emit VotersImported(_sourceContract, importedCount);
     }
 
-    /// @notice Get details of a specific voter (only callable by owner/admins for privacy reasons)
-    /// @param _voterAddress Address of the voter
-    /// @return name The voter's name
-    /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
-    /// @return gender The voter's gender
-    /// @return presentAddress The voter's address
-    /// @return email The voter's email
-    /// @return timesVoted How many times the voter has cast their vote
-    /// @return registrationTimestamp When the voter registered
+    /**
+     * @notice Get details of a specific voter
+     * @dev Only callable by owner/admins for privacy reasons
+     * @param _voterAddress Address of the voter
+     * @return name The voter's name
+     * @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
+     * @return gender The voter's gender
+     * @return presentAddress The voter's address
+     * @return email The voter's email
+     * @return timesVoted How many times the voter has cast their vote
+     * @return registrationTimestamp When the voter registered
+     */
     function adminGetVoterDetails(
         address _voterAddress
     )
@@ -480,6 +550,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         view
         override
         onlyAdmin
+        onlyRegistered(_voterAddress)
         returns (
             string memory name,
             uint256 dateOfBirthEpoch,
@@ -490,9 +561,6 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 registrationTimestamp
         )
     {
-        if (s_voters[_voterAddress].registrationTimestamp == 0) {
-            revert VoterDatabase__NotRegistered();
-        }
         Voter memory voter = s_voters[_voterAddress];
         return (
             voter.name,
@@ -505,52 +573,62 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         );
     }
 
-    /// @notice Get the total number of registered voters
-    /// @return The count of registered voters
+    /**
+     * @notice Get the total number of registered voters
+     * @dev Only callable by owner/admins
+     * @return count The count of registered voters
+     */
     function adminGetVoterCount()
         public
         view
         override
         onlyAdmin
-        returns (uint256)
+        returns (uint256 count)
     {
         return s_voterAddresses.length;
     }
 
-    /// @notice Get addresses of all registered voters
-    /// @return Array of addresses of all registered voters
+    /**
+     * @notice Get addresses of all registered voters
+     * @dev Only callable by owner/admins
+     * @return voterAddresses Array of addresses of all registered voters
+     */
     function adminGetAllVoters()
         public
         view
         override
         onlyAdmin
-        returns (address[] memory)
+        returns (address[] memory voterAddresses)
     {
         return s_voterAddresses;
     }
 
-    /// @notice Calculate age from date of birth
-    /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
-    /// @return Age in years
+    /**
+     * @notice Calculate age from date of birth
+     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @return Age in years
+     */
     function _calculateAge(
         uint256 _dateOfBirthEpoch
     ) internal view returns (uint256) {
         return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
     }
 
-    /// @notice Get your own voter details
-    /// @return name Your name
-    /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
-    /// @return gender Your gender
-    /// @return presentAddress Your present address
-    /// @return email Your email address
-    /// @return timesVoted How many times you have voted
-    /// @return registrationTimestamp When you registered
+    /**
+     * @notice Get your own voter details
+     * @return name Your name
+     * @return dateOfBirthEpoch Your date of birth as Unix timestamp
+     * @return gender Your gender
+     * @return presentAddress Your present address
+     * @return email Your email address
+     * @return timesVoted How many times you have voted
+     * @return registrationTimestamp When you registered
+     */
     function getMyDetails()
         public
         view
         override
-        onlyRegistered
+        onlyRegistered(msg.sender)
         returns (
             string memory name,
             uint256 dateOfBirthEpoch,
@@ -573,8 +651,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         );
     }
 
-    /// @notice Get your own registration status
-    /// @return isRegistered Whether you are registered to vote
+    /**
+     * @notice Get your own registration status
+     * @return isRegistered Whether you are registered to vote
+     */
     function getMyRegistrationStatus()
         public
         view
@@ -584,29 +664,42 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         return s_voters[msg.sender].registrationTimestamp > 0;
     }
 
-    /// @notice Get an account's registration status
-    /// @return isRegistered Whether they are registered to vote
+    /**
+     * @notice Get an account's registration status
+     * @dev Only callable by owner/admins
+     * @param _voterAddress Address to check
+     * @return isRegistered Whether they are registered to vote
+     */
     function adminGetRegistrationStatus(
         address _voterAddress
     ) public view override onlyAdmin returns (bool isRegistered) {
         return s_voters[_voterAddress].registrationTimestamp > 0;
     }
 
-    /// @notice Get your own voting status
-    /// @return hasVoted Whether you have voted at least once
+    /**
+     * @notice Get your own voting status
+     * @return hasVoted Whether you have voted at least once
+     */
     function getMyVotingStatus()
         public
         view
         override
-        onlyRegistered
+        onlyRegistered(msg.sender)
         returns (bool hasVoted)
     {
         return s_voters[msg.sender].timesVoted > 0;
     }
 
-    /// @notice Get your current age based on stored date of birth
-    /// @return Your current age in years
-    function getMyAge() public view onlyRegistered returns (uint256) {
+    /**
+     * @notice Get your current age based on stored date of birth
+     * @return age Your current age in years
+     */
+    function getMyAge()
+        public
+        view
+        onlyRegistered(msg.sender)
+        returns (uint256 age)
+    {
         return _calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
     }
 }
