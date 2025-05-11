@@ -39,6 +39,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     struct Voter {
         string name;
         string presentAddress;
+        string email;
         Gender gender;
         uint256 timesVoted;
         uint256 dateOfBirthEpoch;
@@ -60,14 +61,16 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter (0 for Male, 1 for Female)
     /// @param _presentAddress Present address of the voter
+    /// @param _email Email address of the voter
     function addVoter(
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress
+        string memory _presentAddress,
+        string memory _email
     ) external override {
         // Calculate age using constant for seconds in a year
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        uint256 age = _calculateAge(_dateOfBirthEpoch);
         if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         if (s_voters[msg.sender].registrationTimestamp > 0)
@@ -78,6 +81,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             dateOfBirthEpoch: _dateOfBirthEpoch,
             gender: _gender,
             presentAddress: _presentAddress,
+            email: _email,
             timesVoted: 0,
             registrationTimestamp: block.timestamp
         });
@@ -91,17 +95,19 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated address
+    /// @param _email Updated email
     function updateVoter(
         string memory _name,
         uint256 _dateOfBirthEpoch,
         Gender _gender,
-        string memory _presentAddress
+        string memory _presentAddress,
+        string memory _email
     ) external override onlyRegistered {
         if (s_voters[msg.sender].timesVoted > 0)
             revert VoterDatabase__CannotUpdateAfterVoting();
 
         // Verify age eligibility with the new DOB
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        uint256 age = _calculateAge(_dateOfBirthEpoch);
         if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         Voter storage voter = s_voters[msg.sender];
@@ -109,6 +115,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
+        voter.email = _email;
 
         emit VoterUpdated(msg.sender);
     }
@@ -149,6 +156,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @param _gender Gender of the voter
     /// @param _presentAddress Present address of the voter
+    /// @param _email Email address of the voter
     /// @param _timesVoted Initial voting status of the voter
     function adminAddVoter(
         address _voterAddress,
@@ -156,6 +164,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
+        string memory _email,
         uint256 _timesVoted
     ) external override onlyAdmin {
         if (_voterAddress == address(0)) revert VoterDatabase__InvalidAddress();
@@ -165,7 +174,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             revert VoterDatabase__AlreadyRegistered();
 
         // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        uint256 age = _calculateAge(_dateOfBirthEpoch);
         if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         s_voters[_voterAddress] = Voter({
@@ -174,6 +183,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             registrationTimestamp: block.timestamp,
             gender: _gender,
             presentAddress: _presentAddress,
+            email: _email,
             timesVoted: _timesVoted
         });
 
@@ -189,6 +199,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
     /// @param _gender Updated gender
     /// @param _presentAddress Updated present address
+    /// @param _email Updated email address
     /// @param _timesVoted Updated voting status
     function adminUpdateVoter(
         address _voterAddress,
@@ -196,13 +207,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         uint256 _dateOfBirthEpoch,
         Gender _gender,
         string memory _presentAddress,
+        string memory _email,
         uint256 _timesVoted
     ) external override onlyAdmin {
         if (s_voters[_voterAddress].registrationTimestamp == 0)
             revert VoterDatabase__NotRegistered();
 
         // Check age eligibility
-        uint256 age = (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
+        uint256 age = _calculateAge(_dateOfBirthEpoch);
         if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
         Voter storage voter = s_voters[_voterAddress];
@@ -212,6 +224,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         voter.dateOfBirthEpoch = _dateOfBirthEpoch;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
+        voter.email = _email;
         voter.timesVoted = _timesVoted;
 
         emit AdminUpdatedVoter(_voterAddress, msg.sender);
@@ -276,12 +289,12 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             IVoterDatabase.Gender gender,
             string memory presentAddress,
+            string memory email,
             uint256 timesVoted,
             uint256 /* registrationTimestamp */
         ) {
             // Check age eligibility
-            uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                SECONDS_PER_YEAR;
+            uint256 age = _calculateAge(dateOfBirthEpoch);
             if (age < MIN_ELIGIBLE_AGE) revert VoterDatabase__NotEligible();
 
             // Add voter to this contract
@@ -291,6 +304,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 registrationTimestamp: block.timestamp,
                 gender: Gender(uint(gender)),
                 presentAddress: presentAddress,
+                email: email,
                 timesVoted: timesVoted
             });
 
@@ -331,12 +345,12 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
+                string memory email,
                 uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                    SECONDS_PER_YEAR;
+                uint256 age = _calculateAge(dateOfBirthEpoch);
                 if (age < MIN_ELIGIBLE_AGE) {
                     unchecked {
                         ++i;
@@ -351,6 +365,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                     registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
+                    email: email,
                     timesVoted: timesVoted
                 });
 
@@ -407,12 +422,12 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                 uint256 dateOfBirthEpoch,
                 IVoterDatabase.Gender gender,
                 string memory presentAddress,
+                string memory email,
                 uint256 timesVoted,
                 uint256 /* registrationTimestamp */
             ) {
                 // Check age eligibility
-                uint256 age = (block.timestamp - dateOfBirthEpoch) /
-                    SECONDS_PER_YEAR;
+                uint256 age = _calculateAge(dateOfBirthEpoch);
                 if (age < MIN_ELIGIBLE_AGE) {
                     unchecked {
                         ++i;
@@ -427,6 +442,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
                     registrationTimestamp: block.timestamp,
                     gender: Gender(uint(gender)),
                     presentAddress: presentAddress,
+                    email: email,
                     timesVoted: timesVoted
                 });
 
@@ -454,7 +470,9 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
     /// @return gender The voter's gender
     /// @return presentAddress The voter's address
+    /// @return email The voter's email
     /// @return timesVoted How many times the voter has cast their vote
+    /// @return registrationTimestamp When the voter registered
     function adminGetVoterDetails(
         address _voterAddress
     )
@@ -467,6 +485,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
+            string memory email,
             uint256 timesVoted,
             uint256 registrationTimestamp
         )
@@ -480,6 +499,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
+            voter.email,
             voter.timesVoted,
             voter.registrationTimestamp
         );
@@ -512,9 +532,9 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Calculate age from date of birth
     /// @param _dateOfBirthEpoch Date of birth as Unix timestamp
     /// @return Age in years
-    function calculateAge(
+    function _calculateAge(
         uint256 _dateOfBirthEpoch
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         return (block.timestamp - _dateOfBirthEpoch) / SECONDS_PER_YEAR;
     }
 
@@ -523,7 +543,9 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @return dateOfBirthEpoch Your date of birth as Unix timestamp
     /// @return gender Your gender
     /// @return presentAddress Your present address
+    /// @return email Your email address
     /// @return timesVoted How many times you have voted
+    /// @return registrationTimestamp When you registered
     function getMyDetails()
         public
         view
@@ -534,6 +556,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             uint256 dateOfBirthEpoch,
             Gender gender,
             string memory presentAddress,
+            string memory email,
             uint256 timesVoted,
             uint256 registrationTimestamp
         )
@@ -544,6 +567,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
             voter.dateOfBirthEpoch,
             voter.gender,
             voter.presentAddress,
+            voter.email,
             voter.timesVoted,
             voter.registrationTimestamp
         );
@@ -583,6 +607,6 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /// @notice Get your current age based on stored date of birth
     /// @return Your current age in years
     function getMyAge() public view onlyRegistered returns (uint256) {
-        return calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
+        return _calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
     }
 }

@@ -33,6 +33,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(17),
             GenderEnum.MALE,
             "Some Address",
+            "alice@example.com",
           ])
         ).to.be.rejectedWith("VoterDatabase__NotEligible");
       });
@@ -46,6 +47,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(20),
           GenderEnum.FEMALE,
           "Some Address",
+          "alice@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
         await expect(
@@ -54,6 +56,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(20),
             GenderEnum.FEMALE,
             "Some Address",
+            "alice@example.com",
           ])
         ).to.be.rejectedWith("VoterDatabase__AlreadyRegistered");
       });
@@ -68,6 +71,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(20),
           GenderEnum.MALE,
           "Some Address",
+          "alice@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -85,6 +89,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "123 Main St",
+          "alice@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
 
@@ -93,8 +98,9 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[1], getDobEpochFromAge(25));
         assert.equal(details[2], GenderEnum.MALE);
         assert.equal(details[3], "123 Main St");
-        assert.equal(details[4], 0n); // timesVoted should be 0
-        assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
+        assert.equal(details[4], "alice@example.com");
+        assert.equal(details[5], 0n); // timesVoted should be 0
+        assert.isAtLeast(Number(details[6]), 1); // registrationTimestamp should be valid
       });
     });
 
@@ -108,6 +114,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(30),
             GenderEnum.FEMALE,
             "New Address",
+            "bob@example.com",
           ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
       });
@@ -121,6 +128,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(30),
           GenderEnum.FEMALE,
           "Some Address",
+          "bob@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -133,6 +141,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(31),
             GenderEnum.FEMALE,
             "Updated Address",
+            "bobupdated@example.com",
           ])
         ).to.be.rejectedWith("VoterDatabase__CannotUpdateAfterVoting");
       });
@@ -146,6 +155,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(22),
           GenderEnum.MALE,
           "Some Address",
+          "charlie@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -154,6 +164,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(23),
           GenderEnum.MALE,
           "New Address",
+          "charles@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -171,6 +182,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(40),
           GenderEnum.MALE,
           "Old Street",
+          "david@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -179,6 +191,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(41),
           GenderEnum.FEMALE,
           "New Street",
+          "dave@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
@@ -187,8 +200,9 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(details[1], getDobEpochFromAge(41));
         assert.equal(details[2], GenderEnum.FEMALE);
         assert.equal(details[3], "New Street");
-        assert.equal(details[4], 0n); // timesVoted should still be 0
-        assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should still be valid
+        assert.equal(details[4], "dave@example.com");
+        assert.equal(details[5], 0n); // timesVoted should still be 0
+        assert.isAtLeast(Number(details[6]), 1); // registrationTimestamp should still be valid
       });
     });
 
@@ -210,6 +224,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(30),
           GenderEnum.FEMALE,
           "Some Address",
+          "emily@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -231,6 +246,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
+          "frank@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -260,6 +276,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(42),
           GenderEnum.FEMALE,
           "Some Address",
+          "helen@example.com",
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -290,6 +307,7 @@ describe("VoterDatabase Unit Tests", function () {
               getDobEpochFromAge(25),
               GenderEnum.MALE,
               "Some Address",
+              "tom@example.com",
               0n,
             ],
             { account: otherAccount.account }
@@ -307,6 +325,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(25),
             GenderEnum.MALE,
             "Some Address",
+            "tom@example.com",
             0n,
           ])
         ).to.be.rejectedWith("VoterDatabase__InvalidAddress");
@@ -322,6 +341,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
+          "tom@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash });
@@ -350,6 +370,7 @@ describe("VoterDatabase Unit Tests", function () {
               getDobEpochFromAge(26),
               GenderEnum.FEMALE,
               "New Address",
+              "tom-updated@example.com",
               0n,
             ],
             { account: otherAccount.account }
@@ -369,6 +390,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(26),
             GenderEnum.FEMALE,
             "New Address",
+            "tom-updated@example.com",
             0n,
           ])
         ).to.be.rejectedWith("VoterDatabase__NotRegistered");
@@ -385,6 +407,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(25),
           GenderEnum.MALE,
           "Some Address",
+          "tom@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -396,6 +419,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(26),
           GenderEnum.FEMALE,
           "New Address",
+          "tom-updated@example.com",
           1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -420,6 +444,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(30),
           GenderEnum.MALE,
           "Some Address",
+          "jerry@example.com",
           1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -431,6 +456,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "New Address",
+          "jerry-updated@example.com",
           1n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -443,7 +469,8 @@ describe("VoterDatabase Unit Tests", function () {
         assert.equal(voterDetails[1], getDobEpochFromAge(31));
         assert.equal(voterDetails[2], GenderEnum.FEMALE);
         assert.equal(voterDetails[3], "New Address");
-        assert.equal(voterDetails[4], 1n);
+        assert.equal(voterDetails[4], "jerry-updated@example.com");
+        assert.equal(voterDetails[5], 1n);
       });
     });
 
@@ -478,6 +505,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(33),
           GenderEnum.FEMALE,
           "Some Address",
+          "kate@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -508,6 +536,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(27),
           GenderEnum.MALE,
           "Some Address",
+          "liam@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -558,6 +587,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(29),
           GenderEnum.FEMALE,
           "Some Address",
+          "maria@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -588,6 +618,7 @@ describe("VoterDatabase Unit Tests", function () {
           getDobEpochFromAge(31),
           GenderEnum.FEMALE,
           "Some Address",
+          "nina@example.com",
           0n,
         ]);
         await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -596,7 +627,7 @@ describe("VoterDatabase Unit Tests", function () {
         let voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], 0n);
+        assert.equal(voterDetails[5], 0n);
 
         // Mark as voted
         const hash2 = await voterDatabase.write.adminMarkVoted([
@@ -608,7 +639,7 @@ describe("VoterDatabase Unit Tests", function () {
         voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], 1n);
+        assert.equal(voterDetails[5], 1n);
 
         // Mark as voted again to increment counter
         const hash3 = await voterDatabase.write.adminMarkVoted([
@@ -620,7 +651,7 @@ describe("VoterDatabase Unit Tests", function () {
         voterDetails = await voterDatabase.read.adminGetVoterDetails([
           otherAccount.account.address,
         ]);
-        assert.equal(voterDetails[4], 2n);
+        assert.equal(voterDetails[5], 2n);
       });
     });
   });
@@ -646,6 +677,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(38),
             GenderEnum.MALE,
             "456 Oak St",
+            "quinn@example.com",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -654,8 +686,9 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[1], getDobEpochFromAge(38));
           assert.equal(details[2], GenderEnum.MALE);
           assert.equal(details[3], "456 Oak St");
-          assert.equal(details[4], 0n);
-          assert.isAtLeast(Number(details[5]), 1); // registrationTimestamp should be valid
+          assert.equal(details[4], "quinn@example.com");
+          assert.equal(details[5], 0n);
+          assert.isAtLeast(Number(details[6]), 1); // registrationTimestamp should be valid
         });
       });
 
@@ -678,6 +711,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(27),
             GenderEnum.MALE,
             "Some Address",
+            "ryan@example.com",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -706,6 +740,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(33),
             GenderEnum.FEMALE,
             "Some Address",
+            "samantha@example.com",
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
 
@@ -722,6 +757,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(29),
             GenderEnum.MALE,
             "Some Address",
+            "tyler@example.com",
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
@@ -776,6 +812,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
+            "user1@example.com",
             0n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -786,6 +823,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
+            "user2@example.com",
             1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -818,6 +856,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(30),
             GenderEnum.MALE,
             "Address One",
+            "user1@example.com",
             0n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash1 });
@@ -828,6 +867,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(35),
             GenderEnum.FEMALE,
             "Address Two",
+            "user2@example.com",
             1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash: hash2 });
@@ -885,6 +925,7 @@ describe("VoterDatabase Unit Tests", function () {
             getDobEpochFromAge(42),
             GenderEnum.FEMALE,
             "Test Address",
+            "testuser@example.com",
             1n,
           ]);
           await publicClient.waitForTransactionReceipt({ hash });
@@ -897,7 +938,8 @@ describe("VoterDatabase Unit Tests", function () {
           assert.equal(details[1], getDobEpochFromAge(42));
           assert.equal(details[2], GenderEnum.FEMALE);
           assert.equal(details[3], "Test Address");
-          assert.equal(details[4], 1n);
+          assert.equal(details[4], "testuser@example.com");
+          assert.equal(details[5], 1n);
         });
       });
     });
