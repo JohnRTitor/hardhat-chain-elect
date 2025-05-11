@@ -26,7 +26,6 @@ error ElectionDatabase__CandidateNotRegistered();
 error ElectionDatabase__CandidateAlreadyEnrolled();
 
 /// @notice Thrown when a restricted action is attempted during an active election
-/// @notice like enrolling/withdrawing a candidate
 error ElectionDatabase__ElectionActive();
 
 /// @notice Thrown when an election is not currently accepting votes
@@ -41,7 +40,22 @@ error ElectionDatabase__ElectionHasNoContestant();
 /// @notice Thrown when an invalid address (0x0) is provided
 error ElectionDatabase__InvalidAddress();
 
+/**
+ * @title ElectionDatabase Contract
+ * @author Masum Reza
+ * @notice This contract manages election creation, candidate enrollment, and voting processes
+ * @dev This contract implements:
+ *      - Admin functions for election management
+ *      - Candidate self-enrollment for elections
+ *      - Secure voting functionality
+ *      - Integration with VoterDatabase and CandidateDatabase
+ */
 contract ElectionDatabase is AdminManagement {
+    /**
+     * @notice Stores details for a single election
+     * @dev The registrationTimestamp serves as both a timestamp and a registration flag
+     *    - If > 0, election is registered
+     */
     struct Election {
         string name;
         string description;
@@ -60,9 +74,11 @@ contract ElectionDatabase is AdminManagement {
         uint256 registrationTimestamp;
     }
 
+    /// @dev References to external databases
     IVoterDatabase private immutable s_voterDB;
     ICandidateDatabase private immutable s_candidateDB;
 
+    /// @dev Election storage and tracking
     uint256 private s_electionCounter;
     mapping(uint256 => Election) private s_elections;
     uint256[] private s_electionIds;
@@ -88,14 +104,14 @@ contract ElectionDatabase is AdminManagement {
         address indexed remover
     );
 
-    /// @notice Emitted when a candidate is added to an election
+    /// @notice Emitted when a candidate is added to an election by an admin
     event AdminEnrolledCandidate(
         uint256 indexed electionId,
         address indexed candidate,
         address indexed adder
     );
 
-    /// @notice Emitted when a candidate is removed from an election
+    /// @notice Emitted when a candidate is removed from an election by an admin
     event AdminRemovedCandidate(
         uint256 indexed electionId,
         address indexed candidate,
@@ -127,24 +143,39 @@ contract ElectionDatabase is AdminManagement {
     /// @notice Emitted when an election is closed
     event ElectionClosed(uint256 indexed electionId, address indexed admin);
 
+    /**
+     * @notice Ensures the election exists
+     * @param _electionId ID of the election to check
+     */
     modifier onlyRegisteredElection(uint256 _electionId) {
         if (s_elections[_electionId].registrationTimestamp == 0)
             revert ElectionDatabase__ElectionNotFound();
         _;
     }
 
+    /**
+     * @notice Ensures the election is open for voting
+     * @param _electionId ID of the election to check
+     */
     modifier onlyOpenElection(uint256 _electionId) {
         if (!s_elections[_electionId].isActive)
             revert ElectionDatabase__ElectionClosed();
         _;
     }
 
+    /**
+     * @notice Ensures the election is closed/inactive
+     * @param _electionId ID of the election to check
+     */
     modifier onlyClosedElection(uint256 _electionId) {
         if (s_elections[_electionId].isActive)
             revert ElectionDatabase__ElectionActive();
         _;
     }
 
+    /**
+     * @notice Ensures the caller is a registered voter
+     */
     modifier onlyRegisteredVoter() {
         if (!s_voterDB.adminGetRegistrationStatus(msg.sender)) {
             revert ElectionDatabase__VoterNotRegistered();
@@ -152,16 +183,23 @@ contract ElectionDatabase is AdminManagement {
         _;
     }
 
+    /**
+     * @notice Ensures the address belongs to a registered candidate
+     * @param _candidate Address to check for registration in CandidateDatabase
+     */
     modifier onlyRegisteredCandidate(address _candidate) {
-        // check if the candidate is registered in the CandidateDatabase
         if (!s_candidateDB.getCandidateRegistrationStatus(_candidate)) {
             revert ElectionDatabase__CandidateNotRegistered();
         }
         _;
     }
 
+    /**
+     * @notice Ensures the address belongs to a candidate enrolled in the specified election
+     * @param _electionId ID of the election
+     * @param _candidate Address to check for enrollment
+     */
     modifier onlyEnrolledCandidate(uint256 _electionId, address _candidate) {
-        // Verify candidate is registered in this election
         Election storage election = s_elections[_electionId];
         bool validCandidate = false;
         for (uint256 i = 0; i < election.candidates.length; i++) {
@@ -174,8 +212,11 @@ contract ElectionDatabase is AdminManagement {
         _;
     }
 
-    /// @param _voterDBAddress Address of the VoterDatabase contract
-    /// @param _candidateDBAddress Address of the CandidateDatabase contract
+    /**
+     * @notice Contract constructor
+     * @param _voterDBAddress Address of the VoterDatabase contract
+     * @param _candidateDBAddress Address of the CandidateDatabase contract
+     */
     constructor(address _voterDBAddress, address _candidateDBAddress) {
         if (_voterDBAddress == address(0) || _candidateDBAddress == address(0))
             revert ElectionDatabase__InvalidAddress();
@@ -185,9 +226,12 @@ contract ElectionDatabase is AdminManagement {
         s_electionCounter = 0;
     }
 
-    /// @notice Creates a new election with given name and description
-    /// @param _name Name of the election
-    /// @param _description Description of the election
+    /**
+     * @notice Creates a new election with given name and description
+     * @dev Only owner/admins can call this function
+     * @param _name Name of the election
+     * @param _description Description of the election
+     */
     function adminCreateElection(
         string memory _name,
         string memory _description
@@ -207,10 +251,13 @@ contract ElectionDatabase is AdminManagement {
         emit AdminCreatedElection(electionId, _name, msg.sender);
     }
 
-    /// @notice Updates an existing election's details
-    /// @param _electionId ID of the election to update
-    /// @param _name New name for the election
-    /// @param _description New description for the election
+    /**
+     * @notice Updates an existing election's details
+     * @dev Only owner/admins can call this function
+     * @param _electionId ID of the election to update
+     * @param _name New name for the election
+     * @param _description New description for the election
+     */
     function adminUpdateElection(
         uint256 _electionId,
         string memory _name,
@@ -224,8 +271,11 @@ contract ElectionDatabase is AdminManagement {
         emit AdminUpdatedElection(_electionId, _name, msg.sender);
     }
 
-    /// @notice Deletes an existing election
-    /// @param _electionId ID of the election to delete
+    /**
+     * @notice Deletes an existing election
+     * @dev Only owner/admins can call this function
+     * @param _electionId ID of the election to delete
+     */
     function adminDeleteElection(
         uint256 _electionId
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
@@ -247,9 +297,12 @@ contract ElectionDatabase is AdminManagement {
         emit AdminDeletedElection(_electionId, electionName, msg.sender);
     }
 
-    /// @notice Opens an election for voting
-    /// @param _electionId ID of the election to open
-    /// @dev Election must have at least one candidate to be opened
+    /**
+     * @notice Opens an election for voting
+     * @dev Only owner/admins can call this function
+     * @dev Election must have at least one candidate to be opened
+     * @param _electionId ID of the election to open
+     */
     function adminOpenElection(
         uint256 _electionId
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
@@ -264,8 +317,11 @@ contract ElectionDatabase is AdminManagement {
         emit ElectionOpened(_electionId, msg.sender);
     }
 
-    /// @notice Closes an election from voting
-    /// @param _electionId ID of the election to close
+    /**
+     * @notice Closes an election from voting
+     * @dev Only owner/admins can call this function
+     * @param _electionId ID of the election to close
+     */
     function adminCloseElection(
         uint256 _electionId
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
@@ -274,8 +330,12 @@ contract ElectionDatabase is AdminManagement {
         emit ElectionClosed(_electionId, msg.sender);
     }
 
-    /// @notice Allows a candidate to enroll themselves in an election
-    /// @param _electionId ID of the election to enroll in
+    /**
+     * @notice Allows a candidate to enroll themselves in an election
+     * @dev Candidate must be registered in CandidateDatabase
+     * @dev Election must be in closed state
+     * @param _electionId ID of the election to enroll in
+     */
     function enrollCandidate(
         uint256 _electionId
     )
@@ -298,8 +358,11 @@ contract ElectionDatabase is AdminManagement {
         emit CandidateEnrolled(_electionId, msg.sender);
     }
 
-    /// @notice Allows a candidate to withdraw themselves from an election
-    /// @param _electionId ID of the election to withdraw from
+    /**
+     * @notice Allows a candidate to withdraw themselves from an election
+     * @dev Election must be in closed state
+     * @param _electionId ID of the election to withdraw from
+     */
     function withdrawCandidate(
         uint256 _electionId
     )
@@ -330,9 +393,11 @@ contract ElectionDatabase is AdminManagement {
         emit CandidateWithdrawn(_electionId, msg.sender);
     }
 
-    /// @notice Allows a registered voter to vote for a candidate in an active election
-    /// @param _electionId ID of the election
-    /// @param _candidate Address of the candidate to vote for
+    /**
+     * @notice Allows a registered voter to vote for a candidate in an active election
+     * @param _electionId ID of the election
+     * @param _candidate Address of the candidate to vote for
+     */
     function vote(
         uint256 _electionId,
         address _candidate
@@ -356,15 +421,17 @@ contract ElectionDatabase is AdminManagement {
         election.totalVotes++;
 
         // Mark the voter as having voted in the voter database
-        // This could be optional depending on your election system design
-        s_voterDB.markVoted();
+        s_voterDB.adminMarkVoted(msg.sender);
 
         emit VoterVoted(_electionId, msg.sender, _candidate);
     }
 
-    /// @notice Adds a candidate to a registered election by an admin
-    /// @param _electionId ID of the election
-    /// @param _candidate Address of the candidate to add
+    /**
+     * @notice Adds a candidate to a registered election by an admin
+     * @dev Only owner/admins can call this function
+     * @param _electionId ID of the election
+     * @param _candidate Address of the candidate to add
+     */
     function adminEnrollCandidate(
         uint256 _electionId,
         address _candidate
@@ -388,9 +455,12 @@ contract ElectionDatabase is AdminManagement {
         emit AdminEnrolledCandidate(_electionId, _candidate, msg.sender);
     }
 
-    /// @notice Removes a candidate from an election by an admin
-    /// @param _electionId ID of the election
-    /// @param _candidate Address of the candidate to remove
+    /**
+     * @notice Removes a candidate from an election by an admin
+     * @dev Only owner/admins can call this function
+     * @param _electionId ID of the election
+     * @param _candidate Address of the candidate to remove
+     */
     function adminWithdrawCandidate(
         uint256 _electionId,
         address _candidate
@@ -418,7 +488,12 @@ contract ElectionDatabase is AdminManagement {
         emit AdminRemovedCandidate(_electionId, _candidate, msg.sender);
     }
 
-    /// @notice Returns the vote count of a candidate in a specific election
+    /**
+     * @notice Returns the vote count of a candidate in a specific election
+     * @param _electionId ID of the election
+     * @param _candidate Address of the candidate
+     * @return Number of votes received by the candidate
+     */
     function getVotesOfCandidate(
         uint256 _electionId,
         address _candidate
@@ -426,14 +501,27 @@ contract ElectionDatabase is AdminManagement {
         return s_elections[_electionId].votesPerCandidate[_candidate];
     }
 
-    /// @notice Returns whether the election is currently active
+    /**
+     * @notice Returns whether the election is currently active
+     * @param _electionId ID of the election
+     * @return Status of the election (true if active)
+     */
     function getElectionStatus(
         uint256 _electionId
     ) external view onlyRegisteredElection(_electionId) returns (bool) {
         return s_elections[_electionId].isActive;
     }
 
-    /// @notice Returns name, description, status, and candidates of an election
+    /**
+     * @notice Returns comprehensive details of an election
+     * @param _electionId ID of the election
+     * @return name Name of the election
+     * @return description Description of the election
+     * @return isActive Whether the election is currently active
+     * @return candidates Array of candidate addresses enrolled in the election
+     * @return totalVotes Total number of votes cast in the election
+     * @return registrationTimestamp When the election was created
+     */
     function getElectionDetails(
         uint256 _electionId
     )
@@ -460,17 +548,27 @@ contract ElectionDatabase is AdminManagement {
         );
     }
 
-    /// @notice Returns the total number of elections created
+    /**
+     * @notice Returns the total number of elections created
+     * @return Count of all elections
+     */
     function getElectionCount() external view returns (uint256) {
         return s_electionIds.length;
     }
 
-    /// @notice Returns all election IDs
+    /**
+     * @notice Returns all election IDs
+     * @return Array of all election IDs
+     */
     function getAllElectionIds() external view returns (uint256[] memory) {
         return s_electionIds;
     }
 
-    /// @notice Returns the list of registered candidates for a given election
+    /**
+     * @notice Returns the list of registered candidates for a given election
+     * @param _electionId ID of the election
+     * @return Array of candidate addresses enrolled in the election
+     */
     function getRegisteredCandidates(
         uint256 _electionId
     )
@@ -482,14 +580,22 @@ contract ElectionDatabase is AdminManagement {
         return s_elections[_electionId].candidates;
     }
 
-    /// @notice Returns the total number of votes cast in an election
+    /**
+     * @notice Returns the total number of votes cast in an election
+     * @param _electionId ID of the election
+     * @return Total vote count
+     */
     function getTotalVoteCount(
         uint256 _electionId
     ) external view onlyRegisteredElection(_electionId) returns (uint256) {
         return s_elections[_electionId].totalVotes;
     }
 
-    /// @notice Returns the winning candidate (highest votes) for a given election
+    /**
+     * @notice Returns the winning candidate (highest votes) for a given election
+     * @param _electionId ID of the election
+     * @return Address of the winning candidate
+     */
     function getWinner(
         uint256 _electionId
     ) external view onlyRegisteredElection(_electionId) returns (address) {
@@ -509,7 +615,12 @@ contract ElectionDatabase is AdminManagement {
         return winnerAddress;
     }
 
-    /// @notice Check if a voter has already voted in a specific election
+    /**
+     * @notice Check if a voter has already voted in a specific election
+     * @param _electionId ID of the election
+     * @param _voter Address of the voter to check
+     * @return True if the voter has voted in this election
+     */
     function hasVoted(
         uint256 _electionId,
         address _voter
@@ -517,7 +628,12 @@ contract ElectionDatabase is AdminManagement {
         return s_elections[_electionId].voterToVoteTimestamp[_voter] > 0;
     }
 
-    /// @notice Get the timestamp when a voter voted in a specific election
+    /**
+     * @notice Get the timestamp when a voter voted in a specific election
+     * @param _electionId ID of the election
+     * @param _voter Address of the voter
+     * @return Timestamp when the voter voted (0 if not voted)
+     */
     function getVoteTimestamp(
         uint256 _electionId,
         address _voter
@@ -525,8 +641,13 @@ contract ElectionDatabase is AdminManagement {
         return s_elections[_electionId].voterToVoteTimestamp[_voter];
     }
 
-    /// @notice Check who a voter voted for in a specific election
-    /// @notice only viewable by voters themselves
+    /**
+     * @notice Check who a voter voted for in a specific election
+     * @dev Only viewable by registered voters (themselves)
+     * @param _electionId ID of the election
+     * @param _voter Address of the voter
+     * @return Address of the candidate voted for (address(0) if not voted)
+     */
     function getVoterChoice(
         uint256 _electionId,
         address _voter
@@ -543,7 +664,11 @@ contract ElectionDatabase is AdminManagement {
         return s_elections[_electionId].voterToChosenCandidate[_voter];
     }
 
-    /// @notice Returns the voting and candidate databases being used
+    /**
+     * @notice Returns the voting and candidate databases being used
+     * @return voterDB Address of the VoterDatabase contract
+     * @return candidateDB Address of the CandidateDatabase contract
+     */
     function getDatabases()
         external
         view

@@ -28,7 +28,7 @@ describe("ElectionDatabase Unit Tests", function () {
     // Deploy VoterDatabase
     const voterDatabase = await hre.viem.deployContract("VoterDatabase", []);
 
-    // Give admin rights to ElectionDatabase contract
+    // Give admin rights to owner
     await voterDatabase.write.addAdmin([owner.account.address]);
 
     // Deploy CandidateDatabase
@@ -50,7 +50,13 @@ describe("ElectionDatabase Unit Tests", function () {
 
     // Register voters
     const hash1 = await voterDatabase.write.addVoter(
-      ["John Voter", getDobEpochFromAge(30), GenderEnum.MALE, "123 Main St"],
+      [
+        "John Voter",
+        getDobEpochFromAge(30),
+        GenderEnum.MALE,
+        "123 Main St",
+        "john@example.com",
+      ],
       {
         account: voter1.account,
       }
@@ -58,7 +64,13 @@ describe("ElectionDatabase Unit Tests", function () {
     await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
     const hash2 = await voterDatabase.write.addVoter(
-      ["Jane Voter", getDobEpochFromAge(25), GenderEnum.FEMALE, "456 Oak St"],
+      [
+        "Jane Voter",
+        getDobEpochFromAge(25),
+        GenderEnum.FEMALE,
+        "456 Oak St",
+        "jane@example.com",
+      ],
       {
         account: voter2.account,
       }
