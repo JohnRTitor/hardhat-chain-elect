@@ -62,6 +62,23 @@ async function main() {
     throw new Error("ElectionDatabase address is missing");
   }
 
+  try {
+    const voterDatabaseContract = await hre.viem.getContractAt(
+      "VoterDatabase",
+      voterDatabaseAddress
+    );
+    const candidateDatabaseContract = await hre.viem.getContractAt(
+      "CandidateDatabase",
+      candidateDatabaseAddress
+    );
+
+    await voterDatabaseContract.write.addAdmin([electionDatabaseAddress]);
+    await candidateDatabaseContract.write.addAdmin([electionDatabaseAddress]);
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+
   if (
     hre.network.config.chainId === sepolia.id &&
     process.env.ETHERSCAN_API_KEY
@@ -84,6 +101,7 @@ main()
     process.exit(0);
   })
   .catch((error) => {
+    console.log("Something went wrong! See the logs for more information.");
     console.error(error);
     process.exit(1);
   });
