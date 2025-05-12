@@ -1,84 +1,99 @@
-// Run with `ts-node scripts/create-frontend-deployment-files.ts`
-// Specify the output dir manually with:
-// DEPLOY_OUT_DIR=/home/masum/Dev-Environment/Blockchains/blockchain-websites/nextjs-chain-elect/src/constants ts-node scripts/create-frontend-deployment-files.ts
+#!/usr/bin/env ts-node
+/**
+ * Frontend Deployment Files Generator
+ *
+ * Creates JSON files with contract ABIs and addresses for frontend usage.
+ *
+ * Usage:
+ * - Basic: `ts-node scripts/create-frontend-deployment-files.ts`
+ * - With custom output: `DEPLOY_OUT_DIR=./path/to/output ts-node scripts/create-frontend-deployment-files.ts`
+ * - Example: `DEPLOY_OUT_DIR=/home/masum/Dev-Environment/Blockchains/blockchain-websites/nextjs-chain-elect/src/constants ts-node scripts/create-frontend-deployment-files.ts`
+ */
 
 import fs from "fs";
 import path from "path";
-import { Abi } from "viem";
+import { Abi, Address } from "viem";
 
-// Specify the output directory for deployment files
-const outputDir = process.env.DEPLOY_OUT_DIR || "./deployments";
+// Configuration
+const NETWORK = "sepolia";
+const CHAIN_ID = "11155111";
 
-// Ensure output directory exists
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
+// Contract definitions
+interface Contract {
+  name: string;
+  moduleName: string;
+  artifactPath: string;
 }
 
-// Read deployment addresses from ignition
+const contracts: Contract[] = [
+  {
+    name: "CandidateDatabase",
+    moduleName: "CandidateDatabaseModule#CandidateDatabase",
+    artifactPath:
+      "../artifacts/contracts/CandidateDatabase.sol/CandidateDatabase.json",
+  },
+  {
+    name: "VoterDatabase",
+    moduleName: "VoterDatabaseModule#VoterDatabase",
+    artifactPath: "../artifacts/contracts/VoterDatabase.sol/VoterDatabase.json",
+  },
+  {
+    name: "ElectionDatabase",
+    moduleName: "ElectionDatabaseModule#ElectionDatabase",
+    artifactPath:
+      "../artifacts/contracts/ElectionDatabase.sol/ElectionDatabase.json",
+  },
+];
+
+// Setup output directory
+const outputDir = process.env.DEPLOY_OUT_DIR || "./deployments";
+fs.mkdirSync(outputDir, { recursive: true });
+
+// Read deployment addresses
 const deployedAddressesPath = path.join(
   __dirname,
-  "../ignition/deployments/chain-11155111/deployed_addresses.json"
-);
-const deployedAddresses = JSON.parse(
-  fs.readFileSync(deployedAddressesPath, "utf8")
+  `../ignition/deployments/chain-${CHAIN_ID}/deployed_addresses.json`
 );
 
-// Read the ABIs from the artifacts
-const candidateDBArtifactPath = path.join(
-  __dirname,
-  "../artifacts/contracts/CandidateDatabase.sol/CandidateDatabase.json"
-);
-const voterDBArtifactPath = path.join(
-  __dirname,
-  "../artifacts/contracts/VoterDatabase.sol/VoterDatabase.json"
-);
-const electionDBArtifactPath = path.join(
-  __dirname,
-  "../artifacts/contracts/VoterDatabase.sol/VoterDatabase.json"
-);
+try {
+  const deployedAddresses = JSON.parse(
+    fs.readFileSync(deployedAddressesPath, "utf8")
+  );
 
-const candidateDBArtifact = JSON.parse(
-  fs.readFileSync(candidateDBArtifactPath, "utf8")
-);
-const voterDBArtifact = JSON.parse(
-  fs.readFileSync(voterDBArtifactPath, "utf8")
-);
-const electionDBArtifact = JSON.parse(
-  fs.readFileSync(electionDBArtifactPath, "utf8")
-);
+  // Process each contract
+  contracts.forEach((contract) => {
+    try {
+      // Read contract ABI
+      const artifactPath = path.join(__dirname, contract.artifactPath);
+      const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
 
-// Create deployment files
-const createDeploymentFile = (name: string, address: string, abi: Abi[]) => {
-  const deploymentFile = {
-    addresses: {
-      sepolia: address,
-    },
-    abi,
-  };
+      // Get contract address
+      const address = deployedAddresses[contract.moduleName];
+      if (!address) {
+        throw new Error(`Address not found for ${contract.moduleName}`);
+      }
 
-  const outputPath = path.join(outputDir, `${name}.json`);
-  fs.writeFileSync(outputPath, JSON.stringify(deploymentFile, null, 2));
-  console.log(`Created deployment file at: ${outputPath}`);
-};
+      // Create and write deployment file
+      const deploymentFile: {
+        addresses: Record<string, Address>;
+        abi: Abi;
+      } = {
+        addresses: { [NETWORK]: address },
+        abi: artifact.abi,
+      };
 
-// Extract addresses
-const candidateDBAddress =
-  deployedAddresses["CandidateDatabaseModule#CandidateDatabase"];
-const voterDBAddress = deployedAddresses["VoterDatabaseModule#VoterDatabase"];
-const electionDbAddress =
-  deployedAddresses["ElectionDatabaseModule#ElectionDatabase"];
+      const outputPath = path.join(outputDir, `${contract.name}.json`);
+      fs.writeFileSync(outputPath, JSON.stringify(deploymentFile, null, 2));
+      console.log(`✅ Created ${contract.name} deployment file`);
+    } catch (err) {
+      const error = err as Error;
+      console.error(`❌ Error processing ${contract.name}:`, error.message);
+    }
+  });
 
-// Create the deployment files
-createDeploymentFile(
-  "CandidateDatabase",
-  candidateDBAddress,
-  candidateDBArtifact.abi
-);
-createDeploymentFile("VoterDatabase", voterDBAddress, voterDBArtifact.abi);
-createDeploymentFile(
-  "ElectionDatabase",
-  electionDbAddress,
-  electionDBArtifact.abi
-);
-
-console.log("Deployment files created successfully!");
+  console.log(`\n🎉 Deployment files created successfully in ${outputDir}`);
+} catch (err) {
+  const error = err as Error;
+  console.error(`❌ Failed to create deployment files:`, error.message);
+  process.exit(1);
+}
