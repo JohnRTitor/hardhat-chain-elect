@@ -45,8 +45,8 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string qualifications;
         string manifesto;
         Gender gender;
-        uint256 dateOfBirthEpoch;
-        uint256 registrationTimestamp;
+        uint256 dateOfBirthEpoch1900; // Date of birth in Epoch1900 format
+        uint256 registrationTimestamp1900; // Registration time in Epoch1900 format
     }
 
     /// @dev Main storage for candidate information
@@ -57,10 +57,10 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
 
     /**
      * @notice Ensures the candidate meets minimum age requirements
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Date of birth as Epoch1900 timestamp
      */
-    modifier onlyEligible(uint256 _dateOfBirthEpoch) {
-        if (ElectionUtils.calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
+    modifier onlyEligible(uint256 _dateOfBirthEpoch1900) {
+        if (ElectionUtils.calculateAge(_dateOfBirthEpoch1900) < MIN_ELIGIBLE_AGE)
             revert CandidateDatabase__NotEligible();
         _;
     }
@@ -70,7 +70,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @param _candidateAddress Address to check for registration
      */
     modifier onlyRegistered(address _candidateAddress) {
-        if (s_candidates[_candidateAddress].registrationTimestamp == 0)
+        if (s_candidates[_candidateAddress].registrationTimestamp1900 == 0)
             revert CandidateDatabase__NotRegistered();
         _;
     }
@@ -80,7 +80,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @param _candidateAddress Address to check for registration
      */
     modifier onlyNotRegistered(address _candidateAddress) {
-        if (s_candidates[_candidateAddress].registrationTimestamp > 0)
+        if (s_candidates[_candidateAddress].registrationTimestamp1900 > 0)
             revert CandidateDatabase__AlreadyRegistered();
         _;
     }
@@ -100,7 +100,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @dev Used by both self-registration and admin functions
      * @param _candidateAddress Address of the candidate to add
      * @param _name Name of the candidate
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Date of birth as Epoch1900 timestamp
      * @param _gender Gender of the candidate
      * @param _presentAddress Present address of the candidate
      * @param _email Email address of the candidate
@@ -110,7 +110,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function _addCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -118,18 +118,18 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string memory _manifesto
     )
         internal
-        onlyEligible(_dateOfBirthEpoch)
+        onlyEligible(_dateOfBirthEpoch1900)
         onlyNotRegistered(_candidateAddress)
     {
         s_candidates[_candidateAddress] = Candidate({
             name: _name,
-            dateOfBirthEpoch: _dateOfBirthEpoch,
+            dateOfBirthEpoch1900: _dateOfBirthEpoch1900,
             gender: _gender,
             presentAddress: _presentAddress,
             email: _email,
             qualifications: _qualifications,
             manifesto: _manifesto,
-            registrationTimestamp: block.timestamp
+            registrationTimestamp1900: ElectionUtils.getNowEpoch1900()
         });
 
         s_candidateAddresses.push(_candidateAddress);
@@ -140,7 +140,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @dev Used by both self-update and admin functions
      * @param _candidateAddress Address of the candidate to update
      * @param _name Updated name
-     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Updated date of birth as Epoch1900 timestamp
      * @param _gender Updated gender
      * @param _presentAddress Updated present address
      * @param _email Updated email address
@@ -150,7 +150,7 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
     function _updateCandidate(
         address _candidateAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -158,14 +158,14 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         string memory _manifesto
     )
         internal
-        onlyEligible(_dateOfBirthEpoch)
+        onlyEligible(_dateOfBirthEpoch1900)
         onlyRegistered(_candidateAddress)
     {
         Candidate storage candidate = s_candidates[_candidateAddress];
 
-        // Update details but preserve registrationTimestamp
+        // Update details but preserve registrationTimestamp1900
         candidate.name = _name;
-        candidate.dateOfBirthEpoch = _dateOfBirthEpoch;
+        candidate.dateOfBirthEpoch1900 = _dateOfBirthEpoch1900;
         candidate.gender = _gender;
         candidate.presentAddress = _presentAddress;
         candidate.email = _email;
@@ -533,13 +533,13 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
      * @notice Get details of a specific candidate (publicly accessible)
      * @param _candidateAddress Address of the candidate
      * @return name The candidate's name
-     * @return dateOfBirthEpoch The candidate's date of birth as Unix timestamp
+     * @return dateOfBirthEpoch1900 The candidate's date of birth as Epoch1900 timestamp
      * @return gender The candidate's gender
      * @return presentAddress The candidate's address
      * @return email The candidate's email
      * @return qualifications The candidate's qualifications
      * @return manifesto The candidate's manifesto
-     * @return registrationTimestamp When the candidate registered
+     * @return registrationTimestamp1900 When the candidate registered (Epoch1900)
      */
     function getCandidateDetails(
         address _candidateAddress
@@ -550,25 +550,25 @@ contract CandidateDatabase is ICandidateDatabase, AdminManagement {
         onlyRegistered(_candidateAddress)
         returns (
             string memory name,
-            uint256 dateOfBirthEpoch,
+            uint256 dateOfBirthEpoch1900,
             Gender gender,
             string memory presentAddress,
             string memory email,
             string memory qualifications,
             string memory manifesto,
-            uint256 registrationTimestamp
+            uint256 registrationTimestamp1900
         )
     {
         Candidate memory candidate = s_candidates[_candidateAddress];
         return (
             candidate.name,
-            candidate.dateOfBirthEpoch,
+            candidate.dateOfBirthEpoch1900,
             candidate.gender,
             candidate.presentAddress,
             candidate.email,
             candidate.qualifications,
             candidate.manifesto,
-            candidate.registrationTimestamp
+            candidate.registrationTimestamp1900
         );
     }
 

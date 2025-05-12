@@ -48,8 +48,8 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         string email;
         Gender gender;
         uint256 timesVoted;
-        uint256 dateOfBirthEpoch;
-        uint256 registrationTimestamp;
+        uint256 dateOfBirthEpoch1900; // Date of birth in Epoch1900 format
+        uint256 registrationTimestamp1900; // Registration time in Epoch1900 format
     }
 
     /// @dev Main storage for voter information
@@ -60,10 +60,10 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
 
     /**
      * @notice Ensures the user meets minimum age requirements
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Date of birth as Epoch1900 timestamp
      */
-    modifier onlyEligible(uint256 _dateOfBirthEpoch) {
-        if (ElectionUtils.calculateAge(_dateOfBirthEpoch) < MIN_ELIGIBLE_AGE)
+    modifier onlyEligible(uint256 _dateOfBirthEpoch1900) {
+        if (ElectionUtils.calculateAge(_dateOfBirthEpoch1900) < MIN_ELIGIBLE_AGE)
             revert VoterDatabase__NotEligible();
         _;
     }
@@ -73,7 +73,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @param _voterAddress Address to check for registration
      */
     modifier onlyRegistered(address _voterAddress) {
-        if (s_voters[_voterAddress].registrationTimestamp == 0)
+        if (s_voters[_voterAddress].registrationTimestamp1900 == 0)
             revert VoterDatabase__NotRegistered();
         _;
     }
@@ -83,7 +83,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @param _voterAddress Address to check for registration
      */
     modifier onlyNotRegistered(address _voterAddress) {
-        if (s_voters[_voterAddress].registrationTimestamp > 0)
+        if (s_voters[_voterAddress].registrationTimestamp1900 > 0)
             revert VoterDatabase__AlreadyRegistered();
         _;
     }
@@ -111,24 +111,24 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function _addVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
         uint256 _timesVoted
     )
         internal
-        onlyEligible(_dateOfBirthEpoch)
+        onlyEligible(_dateOfBirthEpoch1900)
         onlyNotRegistered(_voterAddress)
     {
         s_voters[_voterAddress] = Voter({
             name: _name,
-            dateOfBirthEpoch: _dateOfBirthEpoch,
+            dateOfBirthEpoch1900: _dateOfBirthEpoch1900,
             gender: _gender,
             presentAddress: _presentAddress,
             email: _email,
             timesVoted: _timesVoted,
-            registrationTimestamp: block.timestamp
+            registrationTimestamp1900: ElectionUtils.getNowEpoch1900()
         });
 
         s_voterAddresses.push(_voterAddress);
@@ -148,17 +148,17 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function _updateVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
         uint256 _timesVoted
-    ) internal onlyEligible(_dateOfBirthEpoch) onlyRegistered(_voterAddress) {
+    ) internal onlyEligible(_dateOfBirthEpoch1900) onlyRegistered(_voterAddress) {
         Voter storage voter = s_voters[_voterAddress];
 
-        // Update details but preserve registrationTimestamp
+        // Update details but preserve registrationTimestamp1900
         voter.name = _name;
-        voter.dateOfBirthEpoch = _dateOfBirthEpoch;
+        voter.dateOfBirthEpoch1900 = _dateOfBirthEpoch1900;
         voter.gender = _gender;
         voter.presentAddress = _presentAddress;
         voter.email = _email;
@@ -194,14 +194,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @notice Register a new voter in the system
      * @dev Self-registration function for first-time voters
      * @param _name Name of the voter
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Date of birth as Epoch1900 timestamp
      * @param _gender Gender of the voter (0 for Male, 1 for Female)
      * @param _presentAddress Present address of the voter
      * @param _email Email address of the voter
      */
     function addVoter(
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email
@@ -209,7 +209,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         _addVoter(
             msg.sender,
             _name,
-            _dateOfBirthEpoch,
+            _dateOfBirthEpoch1900,
             _gender,
             _presentAddress,
             _email,
@@ -222,14 +222,14 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @notice Update voter information
      * @dev Self-update function for registered voters
      * @param _name Updated name
-     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Updated date of birth as Epoch1900 timestamp
      * @param _gender Updated gender
      * @param _presentAddress Updated address
      * @param _email Updated email
      */
     function updateVoter(
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email
@@ -242,7 +242,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         _updateVoter(
             msg.sender,
             _name,
-            _dateOfBirthEpoch,
+            _dateOfBirthEpoch1900,
             _gender,
             _presentAddress,
             _email,
@@ -279,7 +279,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @dev Only owner/admins can call this function
      * @param _voterAddress Address of the voter to add
      * @param _name Name of the voter
-     * @param _dateOfBirthEpoch Date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Date of birth as Epoch1900 timestamp
      * @param _gender Gender of the voter
      * @param _presentAddress Present address of the voter
      * @param _email Email address of the voter
@@ -288,7 +288,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function adminAddVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -297,7 +297,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         _addVoter(
             _voterAddress,
             _name,
-            _dateOfBirthEpoch,
+            _dateOfBirthEpoch1900,
             _gender,
             _presentAddress,
             _email,
@@ -311,7 +311,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @dev Only owner/admins can call this function, can update even if voter has voted
      * @param _voterAddress Address of the voter to update
      * @param _name Updated name
-     * @param _dateOfBirthEpoch Updated date of birth as Unix timestamp
+     * @param _dateOfBirthEpoch1900 Updated date of birth as Epoch1900 timestamp
      * @param _gender Updated gender
      * @param _presentAddress Updated present address
      * @param _email Updated email address
@@ -320,7 +320,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function adminUpdateVoter(
         address _voterAddress,
         string memory _name,
-        uint256 _dateOfBirthEpoch,
+        uint256 _dateOfBirthEpoch1900,
         Gender _gender,
         string memory _presentAddress,
         string memory _email,
@@ -329,7 +329,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         _updateVoter(
             _voterAddress,
             _name,
-            _dateOfBirthEpoch,
+            _dateOfBirthEpoch1900,
             _gender,
             _presentAddress,
             _email,
@@ -536,12 +536,12 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
      * @dev Only callable by owner/admins for privacy reasons
      * @param _voterAddress Address of the voter
      * @return name The voter's name
-     * @return dateOfBirthEpoch The voter's date of birth as Unix timestamp
+     * @return dateOfBirthEpoch1900 The voter's date of birth as Epoch1900 timestamp
      * @return gender The voter's gender
      * @return presentAddress The voter's address
      * @return email The voter's email
      * @return timesVoted How many times the voter has cast their vote
-     * @return registrationTimestamp When the voter registered
+     * @return registrationTimestamp1900 When the voter registered as Epoch1900 timestamp
      */
     function adminGetVoterDetails(
         address _voterAddress
@@ -553,23 +553,23 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         onlyRegistered(_voterAddress)
         returns (
             string memory name,
-            uint256 dateOfBirthEpoch,
+            uint256 dateOfBirthEpoch1900,
             Gender gender,
             string memory presentAddress,
             string memory email,
             uint256 timesVoted,
-            uint256 registrationTimestamp
+            uint256 registrationTimestamp1900
         )
     {
         Voter memory voter = s_voters[_voterAddress];
         return (
             voter.name,
-            voter.dateOfBirthEpoch,
+            voter.dateOfBirthEpoch1900,
             voter.gender,
             voter.presentAddress,
             voter.email,
             voter.timesVoted,
-            voter.registrationTimestamp
+            voter.registrationTimestamp1900
         );
     }
 
@@ -606,12 +606,12 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     /**
      * @notice Get your own voter details
      * @return name Your name
-     * @return dateOfBirthEpoch Your date of birth as Unix timestamp
+     * @return dateOfBirthEpoch1900 Your date of birth as Epoch1900 timestamp
      * @return gender Your gender
      * @return presentAddress Your present address
      * @return email Your email address
      * @return timesVoted How many times you have voted
-     * @return registrationTimestamp When you registered
+     * @return registrationTimestamp1900 When you registered as Epoch1900 timestamp
      */
     function getMyDetails()
         external
@@ -620,23 +620,23 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         onlyRegistered(msg.sender)
         returns (
             string memory name,
-            uint256 dateOfBirthEpoch,
+            uint256 dateOfBirthEpoch1900,
             Gender gender,
             string memory presentAddress,
             string memory email,
             uint256 timesVoted,
-            uint256 registrationTimestamp
+            uint256 registrationTimestamp1900
         )
     {
         Voter memory voter = s_voters[msg.sender];
         return (
             voter.name,
-            voter.dateOfBirthEpoch,
+            voter.dateOfBirthEpoch1900,
             voter.gender,
             voter.presentAddress,
             voter.email,
             voter.timesVoted,
-            voter.registrationTimestamp
+            voter.registrationTimestamp1900
         );
     }
 
@@ -650,7 +650,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         override
         returns (bool isRegistered)
     {
-        return s_voters[msg.sender].registrationTimestamp > 0;
+        return s_voters[msg.sender].registrationTimestamp1900 > 0;
     }
 
     /**
@@ -662,7 +662,7 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
     function adminGetRegistrationStatus(
         address _voterAddress
     ) external view override onlyAdmin returns (bool isRegistered) {
-        return s_voters[_voterAddress].registrationTimestamp > 0;
+        return s_voters[_voterAddress].registrationTimestamp1900 > 0;
     }
 
     /**
@@ -690,6 +690,6 @@ contract VoterDatabase is IVoterDatabase, AdminManagement {
         returns (uint256 age)
     {
         return
-            ElectionUtils.calculateAge(s_voters[msg.sender].dateOfBirthEpoch);
+            ElectionUtils.calculateAge(s_voters[msg.sender].dateOfBirthEpoch1900);
     }
 }
