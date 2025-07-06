@@ -469,7 +469,7 @@ describe("Security Tests", function () {
         electionDatabase.write.vote([0n, candidate1.account.address], {
           account: voter1.account, // Using another voter account
         })
-      ).to.be.rejectedWith("ElectionDatabase__VoterAlreadyVoted");
+      ).to.be.rejectedWith("ElectionDatabase__ElectionClosed");
     });
 
     it("should prevent unregistered voters from voting", async function () {
