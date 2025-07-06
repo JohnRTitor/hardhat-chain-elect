@@ -199,21 +199,24 @@ describe("Gas Usage Tests", function () {
     });
 
     it("should measure gas usage for batch operations", async function () {
-      const { voterDatabase, candidateDatabase, owner, publicClient } =
-        await loadFixture(deployContractsFixture);
+      const {
+        voterDatabase,
+        candidateDatabase,
+        owner,
+        voter1,
+        voter2,
+        candidate1,
+        candidate2,
+        publicClient,
+      } = await loadFixture(deployContractsFixture);
 
-      // Create a batch of test wallets
-      const numAccounts = 5;
-      let testWallets = [];
-
-      for (let i = 0; i < numAccounts; i++) {
-        const wallet = await hre.viem.getWalletClients();
-        testWallets.push(wallet[0]);
-      }
+      // Use the existing wallet clients to avoid duplicate addresses
+      const testWallets = [owner, voter1, voter2, candidate1, candidate2];
+      const numAccounts = testWallets.length;
 
       // Measure gas for adding multiple voters directly
       let totalGasUsed = 0n;
-      for (let i = 0; i < testWallets.length; i++) {
+      for (let i = 0; i < numAccounts; i++) {
         const walletAddress = testWallets[i].account.address;
         const tx = await voterDatabase.write.adminAddVoter([
           walletAddress,
@@ -231,21 +234,24 @@ describe("Gas Usage Tests", function () {
       }
 
       console.log(
-        `Average gas used per voter in batch: ${totalGasUsed / BigInt(testWallets.length)}`
+        `Average gas used per voter in batch: ${totalGasUsed / BigInt(numAccounts)}`
       );
 
-      // Measure gas for batch import if we had the source contract
-      // Since we don't have a separate source contract for this test,
-      // we're just measuring the theoretical function call cost
-
-      let candidateWallets = testWallets.map(
+      // Create a separate array of addresses for candidates to avoid conflicts
+      const candidateWallets = testWallets.map(
         (wallet) => wallet.account.address
       );
 
-      // Register the candidates individually first to simulate a source database
-      for (let i = 0; i < testWallets.length; i++) {
+      // Deploy another voter database as source for import
+      const sourceCandidateDb = await hre.viem.deployContract(
+        "CandidateDatabase",
+        []
+      );
+
+      // Register the candidates individually first in the source database
+      for (let i = 0; i < numAccounts; i++) {
         const walletAddress = candidateWallets[i];
-        const tx = await candidateDatabase.write.adminAddCandidate([
+        const tx = await sourceCandidateDb.write.adminAddCandidate([
           walletAddress,
           `Batch Candidate ${i}`,
           getDobEpochFromAge(30 + i),
@@ -266,7 +272,7 @@ describe("Gas Usage Tests", function () {
 
       // Measure gas for batch import
       const tx = await destCandidateDb.write.adminBatchImportCandidates([
-        candidateDatabase.address,
+        sourceCandidateDb.address,
         candidateWallets,
       ]);
       const receipt = await publicClient.waitForTransactionReceipt({
@@ -274,17 +280,17 @@ describe("Gas Usage Tests", function () {
       });
 
       console.log(
-        `Gas used for batch importing ${testWallets.length} candidates: ${receipt.gasUsed}`
+        `Gas used for batch importing ${numAccounts} candidates: ${receipt.gasUsed}`
       );
       console.log(
-        `Average gas per candidate in batch import: ${receipt.gasUsed / BigInt(testWallets.length)}`
+        `Average gas per candidate in batch import: ${receipt.gasUsed / BigInt(numAccounts)}`
       );
 
       // Verify imports were successful
       const numImported = await destCandidateDb.read.getCandidateCount();
       assert.equal(
         numImported,
-        BigInt(candidateWallets.length),
+        BigInt(numAccounts),
         "All candidates should be imported"
       );
     });
