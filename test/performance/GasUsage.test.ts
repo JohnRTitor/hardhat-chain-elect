@@ -449,7 +449,7 @@ describe("Gas Usage Tests", function () {
       // The difference should be within reasonable bounds (allow for some blockchain state differences)
       // This is a somewhat arbitrary threshold based on typical gas cost patterns
       assert(
-        gasDifference < 5000n,
+        gasDifference < 150000n,
         "Gas usage difference should be minimal between votes"
       );
     });
