@@ -15,14 +15,18 @@ describe("Database Integration Tests", function () {
   });
 
   async function deployDatabasesFixture() {
-    const [owner, voter1, voter2, candidate1, candidate2] = await hre.viem.getWalletClients();
-    
+    const [owner, voter1, voter2, candidate1, candidate2] =
+      await hre.viem.getWalletClients();
+
     // Deploy VoterDatabase
     const voterDatabase = await hre.viem.deployContract("VoterDatabase", []);
-    
+
     // Deploy CandidateDatabase
-    const candidateDatabase = await hre.viem.deployContract("CandidateDatabase", []);
-    
+    const candidateDatabase = await hre.viem.deployContract(
+      "CandidateDatabase",
+      []
+    );
+
     // Deploy ElectionDatabase with the addresses of the other contracts
     const electionDatabase = await hre.viem.deployContract("ElectionDatabase", [
       voterDatabase.address,
@@ -33,32 +37,37 @@ describe("Database Integration Tests", function () {
     await voterDatabase.write.addAdmin([electionDatabase.address]);
 
     const publicClient = await hre.viem.getPublicClient();
-    
-    return { 
-      voterDatabase, 
-      candidateDatabase, 
-      electionDatabase, 
-      owner, 
-      voter1, 
-      voter2, 
-      candidate1, 
-      candidate2, 
-      publicClient 
+
+    return {
+      voterDatabase,
+      candidateDatabase,
+      electionDatabase,
+      owner,
+      voter1,
+      voter2,
+      candidate1,
+      candidate2,
+      publicClient,
     };
   }
 
   describe("Database Integration", function () {
     it("should properly set up database references in ElectionDatabase", async function () {
-      const { voterDatabase, candidateDatabase, electionDatabase } = await loadFixture(deployDatabasesFixture);
-      
+      const { voterDatabase, candidateDatabase, electionDatabase } =
+        await loadFixture(deployDatabasesFixture);
+
       const databases = await electionDatabase.read.getDatabases();
       assert.equal(getAddress(databases[0]), getAddress(voterDatabase.address));
-      assert.equal(getAddress(databases[1]), getAddress(candidateDatabase.address));
+      assert.equal(
+        getAddress(databases[1]),
+        getAddress(candidateDatabase.address)
+      );
     });
 
     it("should allow ElectionDatabase to mark voters through VoterDatabase", async function () {
-      const { voterDatabase, electionDatabase, voter1, publicClient } = await loadFixture(deployDatabasesFixture);
-      
+      const { voterDatabase, electionDatabase, voter1, publicClient } =
+        await loadFixture(deployDatabasesFixture);
+
       // Register voter1
       const hash1 = await voterDatabase.write.addVoter(
         [
@@ -73,7 +82,7 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: hash1 });
-      
+
       // Verify initial state
       const initialVotingStatus = await voterDatabase.read.getMyVotingStatus({
         account: voter1.account,
@@ -85,7 +94,7 @@ describe("Database Integration Tests", function () {
       await voterDatabase.write.adminMarkVoted([voter1.account.address], {
         account: electionDatabase.account,
       });
-      
+
       // Verify voter has been marked as voted
       const finalVotingStatus = await voterDatabase.read.getMyVotingStatus({
         account: voter1.account,
@@ -94,9 +103,14 @@ describe("Database Integration Tests", function () {
     });
 
     it("should respect voter age restrictions across contracts", async function () {
-      const { voterDatabase, candidateDatabase, voter1, candidate1, publicClient } = 
-        await loadFixture(deployDatabasesFixture);
-      
+      const {
+        voterDatabase,
+        candidateDatabase,
+        voter1,
+        candidate1,
+        publicClient,
+      } = await loadFixture(deployDatabasesFixture);
+
       // Try to register an underage voter
       await expect(
         voterDatabase.write.addVoter(
@@ -112,7 +126,7 @@ describe("Database Integration Tests", function () {
           }
         )
       ).to.be.rejectedWith("VoterDatabase__NotEligible");
-      
+
       // Try to register an underage candidate
       await expect(
         candidateDatabase.write.addCandidate(
@@ -135,18 +149,18 @@ describe("Database Integration Tests", function () {
 
   describe("Full Election Flow", function () {
     it("should support a complete election cycle from registration to voting", async function () {
-      const { 
-        voterDatabase, 
-        candidateDatabase, 
+      const {
+        voterDatabase,
+        candidateDatabase,
         electionDatabase,
-        owner, 
-        voter1, 
-        voter2, 
-        candidate1, 
-        candidate2, 
-        publicClient 
+        owner,
+        voter1,
+        voter2,
+        candidate1,
+        candidate2,
+        publicClient,
       } = await loadFixture(deployDatabasesFixture);
-      
+
       // 1. Register voters
       const voteHash1 = await voterDatabase.write.addVoter(
         [
@@ -161,7 +175,7 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: voteHash1 });
-      
+
       const voteHash2 = await voterDatabase.write.addVoter(
         [
           "Jane Voter",
@@ -175,7 +189,7 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: voteHash2 });
-      
+
       // 2. Register candidates
       const candHash1 = await candidateDatabase.write.addCandidate(
         [
@@ -192,7 +206,7 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: candHash1 });
-      
+
       const candHash2 = await candidateDatabase.write.addCandidate(
         [
           "Bob Candidate",
@@ -208,26 +222,28 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: candHash2 });
-      
+
       // 3. Create an election
-      const elecHash = await electionDatabase.write.adminCreateElection(
-        ["City Mayor Election 2023", "Election for the position of City Mayor"]
-      );
+      const elecHash = await electionDatabase.write.adminCreateElection([
+        "City Mayor Election 2023",
+        "Election for the position of City Mayor",
+      ]);
       await publicClient.waitForTransactionReceipt({ hash: elecHash });
-      
+
       // 4. Enroll candidates in election
       const enrollHash1 = await electionDatabase.write.enrollCandidate([0n], {
         account: candidate1.account,
       });
       await publicClient.waitForTransactionReceipt({ hash: enrollHash1 });
-      
+
       const enrollHash2 = await electionDatabase.write.enrollCandidate([0n], {
         account: candidate2.account,
       });
       await publicClient.waitForTransactionReceipt({ hash: enrollHash2 });
-      
+
       // Verify candidates are registered
-      const enrolledCandidates = await electionDatabase.read.getRegisteredCandidates([0n]);
+      const enrolledCandidates =
+        await electionDatabase.read.getRegisteredCandidates([0n]);
       assert.equal(enrolledCandidates.length, 2);
       assert.include(
         enrolledCandidates.map((addr) => getAddress(addr)),
@@ -237,14 +253,14 @@ describe("Database Integration Tests", function () {
         enrolledCandidates.map((addr) => getAddress(addr)),
         getAddress(candidate2.account.address)
       );
-      
+
       // 5. Open the election
       const openHash = await electionDatabase.write.adminOpenElection([0n]);
       await publicClient.waitForTransactionReceipt({ hash: openHash });
-      
+
       const isActive = await electionDatabase.read.getElectionStatus([0n]);
       assert.equal(isActive, true);
-      
+
       // 6. Cast votes
       const voteHash = await electionDatabase.write.vote(
         [0n, candidate1.account.address],
@@ -253,30 +269,35 @@ describe("Database Integration Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: voteHash });
-      
+
       // Verify vote was cast
       const voteCount = await electionDatabase.read.getVotesOfCandidate([
         0n,
         candidate1.account.address,
       ]);
       assert.equal(voteCount, 1n);
-      
+
       // Verify voter status was updated
-      const hasVoted = await electionDatabase.read.hasVoted([0n, voter1.account.address]);
+      const hasVoted = await electionDatabase.read.hasVoted([
+        0n,
+        voter1.account.address,
+      ]);
       assert.equal(hasVoted, true);
-      
+
       const voterStatus = await voterDatabase.read.getMyVotingStatus({
         account: voter1.account,
       });
       assert.equal(voterStatus, true);
-      
+
       // 7. Close the election
       const closeHash = await electionDatabase.write.adminCloseElection([0n]);
       await publicClient.waitForTransactionReceipt({ hash: closeHash });
-      
-      const isActiveAfterClose = await electionDatabase.read.getElectionStatus([0n]);
+
+      const isActiveAfterClose = await electionDatabase.read.getElectionStatus([
+        0n,
+      ]);
       assert.equal(isActiveAfterClose, false);
-      
+
       // 8. Get the winner
       const winner = await electionDatabase.read.getWinner([0n]);
       assert.equal(getAddress(winner), getAddress(candidate1.account.address));
