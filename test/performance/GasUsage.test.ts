@@ -330,10 +330,10 @@ describe("Gas Usage Tests", function () {
       console.log(`Gas used for self registration: ${receipt2.gasUsed}`);
 
       // Both registrations should be successful
-      let isRegistered1 = await voterDatabase.read.getVoterRegistrationStatus([
-        voter1.account.address,
-      ]);
-      let isRegistered2 = await voterDatabase.read.getMyRegistrationStatus({
+      const isRegistered1 = await voterDatabase.read.adminGetRegistrationStatus(
+        [voter1.account.address]
+      );
+      const isRegistered2 = await voterDatabase.read.getMyRegistrationStatus({
         account: voter2.account,
       });
 
