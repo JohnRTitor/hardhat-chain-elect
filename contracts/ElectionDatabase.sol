@@ -645,12 +645,10 @@ contract ElectionDatabase is AdminManagement {
      * @notice Check who a voter voted for in a specific election
      * @dev Only viewable by registered voters (themselves)
      * @param _electionId ID of the election
-     * @param _voter Address of the voter
      * @return Address of the candidate voted for (address(0) if not voted)
      */
     function getVoterChoice(
-        uint256 _electionId,
-        address _voter
+        uint256 _electionId
     )
         external
         view
@@ -658,10 +656,10 @@ contract ElectionDatabase is AdminManagement {
         onlyRegisteredVoter
         returns (address)
     {
-        if (s_elections[_electionId].voterToVoteTimestamp[_voter] == 0) {
+        if (s_elections[_electionId].voterToVoteTimestamp[msg.sender] == 0) {
             return address(0); // Voter hasn't voted
         }
-        return s_elections[_electionId].voterToChosenCandidate[_voter];
+        return s_elections[_electionId].voterToChosenCandidate[msg.sender];
     }
 
     /**

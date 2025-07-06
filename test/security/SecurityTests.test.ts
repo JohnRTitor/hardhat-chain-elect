@@ -288,8 +288,10 @@ describe("Security Tests", function () {
       // Test that no function allows this check without proper access control
 
       // The getVoterChoice function requires the caller to be a registered voter
+      // Here this will fail with an error as the attacker is not a registered voter and
+      // system won't return voter1's vote
       await expect(
-        electionDatabase.read.getVoterChoice([0n, voter1.account.address], {
+        electionDatabase.read.getVoterChoice([0n], {
           account: attacker.account,
         })
       ).to.be.rejectedWith("ElectionDatabase__VoterNotRegistered");
@@ -308,13 +310,10 @@ describe("Security Tests", function () {
         { account: admin.account }
       );
 
-      // Attacker can now call the function, but should get address(0) since they didn't vote
-      const attackerCheck = await electionDatabase.read.getVoterChoice(
-        [0n, voter1.account.address],
-        {
-          account: attacker.account,
-        }
-      );
+      // Attacker can now call the function, but should get address(0) since they themselves didn't vote
+      const attackerCheck = await electionDatabase.read.getVoterChoice([0n], {
+        account: attacker.account,
+      });
       assert.equal(
         attackerCheck,
         "0x0000000000000000000000000000000000000000",
