@@ -3,7 +3,7 @@ import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
-import { GenderEnum } from "../../types";
+import { GenderEnum, ElectionStatusEnum } from "../../types";
 import { getDobEpochFromAge } from "../../lib/utils";
 
 describe("ElectionDatabase Unit Tests", function () {
@@ -404,6 +404,118 @@ describe("ElectionDatabase Unit Tests", function () {
         ).to.be.rejectedWith("ElectionDatabase__ElectionNotFound");
       });
     });
+
+    describe("adminArchiveElection", function () {
+      it("should revert if called by non-admin", async function () {
+        const { electionDatabase, voter1, candidate1, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const hash4 = await electionDatabase.write.vote(
+          [0n, candidate1.account.address],
+          { account: voter1.account }
+        );
+        await publicClient.waitForTransactionReceipt({ hash: hash4 });
+
+        const hash5 = await electionDatabase.write.adminCompleteElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash5 });
+
+        await expect(
+          electionDatabase.write.adminArchiveElection([0n], {
+            account: voter1.account,
+          })
+        ).to.be.rejectedWith("AdminManagement__NotAdmin");
+      });
+
+      it("should revert if election not found", async function () {
+        const { electionDatabase } = await loadFixture(
+          deployElectionDatabaseFixture
+        );
+
+        await expect(
+          electionDatabase.write.adminArchiveElection([99n])
+        ).to.be.rejectedWith("ElectionDatabase__ElectionNotFound");
+      });
+
+      it("should revert if election already completed", async function () {
+        const { electionDatabase, voter1, candidate1, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const hash4 = await electionDatabase.write.vote(
+          [0n, candidate1.account.address],
+          { account: voter1.account }
+        );
+        await publicClient.waitForTransactionReceipt({ hash: hash4 });
+
+        const hash5 = await electionDatabase.write.adminCompleteElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash5 });
+
+        await expect(
+          electionDatabase.write.adminArchiveElection([0n])
+        ).to.be.rejectedWith("ElectionDatabase__ElectionAlreadyCompleted");
+      });
+
+      it("should emit ElectionArchived on success", async function () {
+        const { electionDatabase, candidate1, owner, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminArchiveElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const events = await electionDatabase.getEvents.ElectionArchived();
+        expect(events).to.have.lengthOf(1);
+        assert.equal(events[0].args.electionId, 0n);
+        assert.equal(
+          getAddress(events[0].args.admin as string),
+          getAddress(owner.account.address)
+        );
+
+        // Verify election status
+        const status = await electionDatabase.read.getElectionStatus([0n]);
+        assert.equal(status, ElectionStatusEnum.ARCHIVED);
+      });
+    });
   });
 
   describe("Candidate Management", function () {
@@ -445,7 +557,7 @@ describe("ElectionDatabase Unit Tests", function () {
           electionDatabase.write.enrollCandidate([0n], {
             account: candidate1.account,
           })
-        ).to.be.rejectedWith("ElectionDatabase__ElectionActive");
+        ).to.be.rejectedWith("ElectionDatabase__ElectionNotNew");
       });
 
       it("should revert if candidate not registered in CandidateDatabase", async function () {
@@ -553,7 +665,7 @@ describe("ElectionDatabase Unit Tests", function () {
           electionDatabase.write.withdrawCandidate([0n], {
             account: candidate1.account,
           })
-        ).to.be.rejectedWith("ElectionDatabase__ElectionActive");
+        ).to.be.rejectedWith("ElectionDatabase__ElectionNotNew");
       });
 
       it("should revert if candidate not enrolled", async function () {
@@ -768,14 +880,14 @@ describe("ElectionDatabase Unit Tests", function () {
         );
 
         // Verify election status
-        const isActive = await electionDatabase.read.getElectionStatus([0n]);
-        assert.equal(isActive, true);
+        const status = await electionDatabase.read.getElectionStatus([0n]);
+        assert.equal(status, ElectionStatusEnum.ACTIVE);
       });
     });
 
-    describe("adminCloseElection", function () {
-      it("should emit ElectionClosed on success", async function () {
-        const { electionDatabase, candidate1, owner, publicClient } =
+    describe("adminCompleteElection", function () {
+      it("should revert if election has no votes", async function () {
+        const { electionDatabase, candidate1, publicClient } =
           await loadFixture(deployElectionDatabaseFixture);
 
         const hash1 = await electionDatabase.write.adminCreateElection([
@@ -794,11 +906,44 @@ describe("ElectionDatabase Unit Tests", function () {
         const hash3 = await electionDatabase.write.adminOpenElection([0n]);
         await publicClient.waitForTransactionReceipt({ hash: hash3 });
 
-        // Close election
-        const hash4 = await electionDatabase.write.adminCloseElection([0n]);
+        // Try to complete election without votes
+        await expect(
+          electionDatabase.write.adminCompleteElection([0n])
+        ).to.be.rejectedWith("ElectionDatabase__ElectionHasNoVotes");
+      });
+
+      it("should emit ElectionCompleted on success", async function () {
+        const { electionDatabase, voter1, candidate1, owner, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        // Add candidate and open election
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        // Cast a vote
+        const hash4 = await electionDatabase.write.vote(
+          [0n, candidate1.account.address],
+          { account: voter1.account }
+        );
         await publicClient.waitForTransactionReceipt({ hash: hash4 });
 
-        const events = await electionDatabase.getEvents.ElectionClosed();
+        // Complete election
+        const hash5 = await electionDatabase.write.adminCompleteElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash5 });
+
+        const events = await electionDatabase.getEvents.ElectionCompleted();
         expect(events).to.have.lengthOf(1);
         assert.equal(events[0].args.electionId, 0n);
         assert.equal(
@@ -807,8 +952,8 @@ describe("ElectionDatabase Unit Tests", function () {
         );
 
         // Verify election status
-        const isActive = await electionDatabase.read.getElectionStatus([0n]);
-        assert.equal(isActive, false);
+        const status = await electionDatabase.read.getElectionStatus([0n]);
+        assert.equal(status, ElectionStatusEnum.COMPLETED);
       });
     });
   });
@@ -867,7 +1012,7 @@ describe("ElectionDatabase Unit Tests", function () {
           electionDatabase.write.vote([0n, candidate1.account.address], {
             account: voter1.account,
           })
-        ).to.be.rejectedWith("ElectionDatabase__ElectionClosed");
+        ).to.be.rejectedWith("ElectionDatabase__ElectionNotActive");
       });
 
       it("should revert if candidate not enrolled in election", async function () {
@@ -1041,7 +1186,7 @@ describe("ElectionDatabase Unit Tests", function () {
         const details = await electionDatabase.read.getElectionDetails([0n]);
         assert.equal(details[0], "Presidential Election 2023");
         assert.equal(details[1], "National presidential election");
-        assert.equal(details[2], false); // isActive
+        assert.equal(details[2], ElectionStatusEnum.NEW); // status
         assert.equal(details[3].length, 1); // candidates array
         assert.equal(
           getAddress(details[3][0]),
@@ -1136,6 +1281,37 @@ describe("ElectionDatabase Unit Tests", function () {
     });
 
     describe("getWinner", function () {
+      it("should revert if election not completed", async function () {
+        const { electionDatabase, voter1, candidate1, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const hash4 = await electionDatabase.write.vote(
+          [0n, candidate1.account.address],
+          { account: voter1.account }
+        );
+        await publicClient.waitForTransactionReceipt({ hash: hash4 });
+
+        // Try to get winner before completing election
+        await expect(electionDatabase.read.getWinner([0n])).to.be.rejectedWith(
+          "ElectionDatabase__ElectionNotCompleted"
+        );
+      });
+
       it("should return the winning candidate", async function () {
         const {
           electionDatabase,
@@ -1180,6 +1356,10 @@ describe("ElectionDatabase Unit Tests", function () {
           { account: voter2.account }
         );
         await publicClient.waitForTransactionReceipt({ hash: hash6 });
+
+        // Complete the election
+        const hash7 = await electionDatabase.write.adminCompleteElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash7 });
 
         // Get winner - should be candidate1 as it's the first one with max votes when tied
         const winner = await electionDatabase.read.getWinner([0n]);
@@ -1282,6 +1462,84 @@ describe("ElectionDatabase Unit Tests", function () {
           voter1.account.address,
         ]);
         assert.isAtLeast(Number(timestamp), 1);
+      });
+    });
+
+    describe("getVoterChoice", function () {
+      it("should revert if called by non-registered voter", async function () {
+        const { electionDatabase, randomNotRegisteredAccount, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash });
+
+        await expect(
+          electionDatabase.read.getVoterChoice([0n], {
+            account: randomNotRegisteredAccount.account,
+          })
+        ).to.be.rejectedWith("ElectionDatabase__VoterNotRegistered");
+      });
+
+      it("should return address(0) if voter hasn't voted", async function () {
+        const { electionDatabase, voter1, candidate1, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const choice = await electionDatabase.read.getVoterChoice([0n], {
+          account: voter1.account,
+        });
+        assert.equal(choice, "0x0000000000000000000000000000000000000000");
+      });
+
+      it("should return correct candidate choice", async function () {
+        const { electionDatabase, voter1, candidate1, publicClient } =
+          await loadFixture(deployElectionDatabaseFixture);
+
+        const hash1 = await electionDatabase.write.adminCreateElection([
+          "Presidential Election 2023",
+          "National presidential election",
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash1 });
+
+        const hash2 = await electionDatabase.write.adminEnrollCandidate([
+          0n,
+          candidate1.account.address,
+        ]);
+        await publicClient.waitForTransactionReceipt({ hash: hash2 });
+
+        const hash3 = await electionDatabase.write.adminOpenElection([0n]);
+        await publicClient.waitForTransactionReceipt({ hash: hash3 });
+
+        const hash4 = await electionDatabase.write.vote(
+          [0n, candidate1.account.address],
+          { account: voter1.account }
+        );
+        await publicClient.waitForTransactionReceipt({ hash: hash4 });
+
+        const choice = await electionDatabase.read.getVoterChoice([0n], {
+          account: voter1.account,
+        });
+        assert.equal(
+          getAddress(choice),
+          getAddress(candidate1.account.address)
+        );
       });
     });
   });

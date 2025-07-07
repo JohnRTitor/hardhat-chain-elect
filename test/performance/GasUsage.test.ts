@@ -3,7 +3,7 @@ import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
-import { GenderEnum } from "../../types";
+import { ElectionStatusEnum, GenderEnum } from "../../types";
 import { getDobEpochFromAge } from "../../lib/utils";
 
 describe("Gas Usage Tests", function () {
@@ -181,7 +181,7 @@ describe("Gas Usage Tests", function () {
       console.log(`Gas used for voting: ${receipt.gasUsed}`);
 
       // Measure election closing
-      tx = await electionDatabase.write.adminCloseElection([0n]);
+      tx = await electionDatabase.write.adminCompleteElection([0n]);
       receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
       console.log(`Gas used for closing election: ${receipt.gasUsed}`);
 
@@ -189,7 +189,11 @@ describe("Gas Usage Tests", function () {
       const electionStatus = await electionDatabase.read.getElectionStatus([
         0n,
       ]);
-      assert.equal(electionStatus, false, "Election should be closed");
+      assert.equal(
+        electionStatus,
+        ElectionStatusEnum.COMPLETED,
+        "Election should be closed"
+      );
 
       const voteCount = await electionDatabase.read.getVotesOfCandidate([
         0n,

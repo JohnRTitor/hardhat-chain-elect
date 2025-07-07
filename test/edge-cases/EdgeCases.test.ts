@@ -111,7 +111,7 @@ describe("Edge Cases Tests", function () {
     });
 
     it("should handle elections with maximum number of candidates", async function () {
-      const { candidateDatabase, electionDatabase, owner, publicClient } =
+      const { candidateDatabase, electionDatabase, publicClient } =
         await loadFixture(deployContractsFixture);
 
       // Create an election
@@ -123,7 +123,7 @@ describe("Edge Cases Tests", function () {
 
       // Deploy multiple wallets for candidates
       const numCandidates = 10; // Can be increased based on gas limits
-      let candidates = [];
+      const candidates = [];
 
       // Create and register multiple candidates
       for (let i = 0; i < numCandidates; i++) {
@@ -203,17 +203,10 @@ describe("Edge Cases Tests", function () {
       await publicClient.waitForTransactionReceipt({ hash: openHash });
 
       // Try to open it again
-      // This should still work but have no effect since it's already open
-      const reopenHash = await electionDatabase.write.adminOpenElection([0n]);
-      await publicClient.waitForTransactionReceipt({ hash: reopenHash });
-
-      // Verify election is still active
-      const isActive = await electionDatabase.read.getElectionStatus([0n]);
-      assert.equal(
-        isActive,
-        true,
-        "Election should remain active after duplicate open"
-      );
+      // Should prevent us from trying to "open" it again
+      await expect(
+        electionDatabase.write.adminOpenElection([0n])
+      ).to.be.rejectedWith("ElectionDatabase__ElectionNotNew");
     });
 
     it("should prevent enrolling in non-existent elections", async function () {
@@ -246,7 +239,7 @@ describe("Edge Cases Tests", function () {
       ).to.be.rejectedWith("ElectionDatabase__ElectionNotFound");
     });
 
-    it("should prevent getting the winner of an election with no votes", async function () {
+    it("should prevent completing an election with no votes", async function () {
       const { electionDatabase, candidateDatabase, candidate1, publicClient } =
         await loadFixture(deployContractsFixture);
 
@@ -283,17 +276,11 @@ describe("Edge Cases Tests", function () {
       const openHash = await electionDatabase.write.adminOpenElection([0n]);
       await publicClient.waitForTransactionReceipt({ hash: openHash });
 
-      // Get the winner (should be address(0) since no votes were cast)
-      const winner = await electionDatabase.read.getWinner([0n]);
-      assert.equal(
-        winner,
-        "0x0000000000000000000000000000000000000000",
-        "Winner should be zero address when no votes"
-      );
-
-      // Close the election
-      const closeHash = await electionDatabase.write.adminCloseElection([0n]);
-      await publicClient.waitForTransactionReceipt({ hash: closeHash });
+      // Try to complete the election with no votes
+      // This should fail because there are no votes
+      await expect(
+        electionDatabase.write.adminCompleteElection([0n])
+      ).to.be.rejectedWith("ElectionDatabase__ElectionHasNoVotes");
     });
   });
 
@@ -504,6 +491,12 @@ describe("Edge Cases Tests", function () {
         }
       );
       await publicClient.waitForTransactionReceipt({ hash: vote2Hash });
+
+      // Complete the election
+      const completeHash = await electionDatabase.write.adminCompleteElection([
+        0n,
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: completeHash });
 
       // Get the winner - should be the first candidate enrolled in case of tie
       const winner = await electionDatabase.read.getWinner([0n]);

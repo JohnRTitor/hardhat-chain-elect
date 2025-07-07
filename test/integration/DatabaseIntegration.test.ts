@@ -3,7 +3,7 @@ import { assert, expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { hardhat } from "viem/chains";
-import { GenderEnum } from "../../types";
+import { ElectionStatusEnum, GenderEnum } from "../../types";
 import { getDobEpochFromAge } from "../../lib/utils";
 
 describe("Database Integration Tests", function () {
@@ -290,13 +290,15 @@ describe("Database Integration Tests", function () {
       assert.equal(voterStatus, true);
 
       // 7. Close the election
-      const closeHash = await electionDatabase.write.adminCloseElection([0n]);
+      const closeHash = await electionDatabase.write.adminCompleteElection([
+        0n,
+      ]);
       await publicClient.waitForTransactionReceipt({ hash: closeHash });
 
       const isActiveAfterClose = await electionDatabase.read.getElectionStatus([
         0n,
       ]);
-      assert.equal(isActiveAfterClose, false);
+      assert.equal(isActiveAfterClose, ElectionStatusEnum.COMPLETED);
 
       // 8. Get the winner
       const winner = await electionDatabase.read.getWinner([0n]);

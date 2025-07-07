@@ -446,7 +446,7 @@ describe("Security Tests", function () {
         electionDatabase.write.vote([0n, candidate1.account.address], {
           account: voter1.account,
         })
-      ).to.be.rejectedWith("ElectionDatabase__ElectionClosed");
+      ).to.be.rejectedWith("ElectionDatabase__ElectionNotActive");
 
       // Open the election
       await electionDatabase.write.adminOpenElection([0n]);
@@ -461,14 +461,14 @@ describe("Security Tests", function () {
       await publicClient.waitForTransactionReceipt({ hash: voteHash });
 
       // Close the election
-      await electionDatabase.write.adminCloseElection([0n]);
+      await electionDatabase.write.adminCompleteElection([0n]);
 
       // Try to vote after election is closed
       await expect(
         electionDatabase.write.vote([0n, candidate1.account.address], {
           account: voter1.account, // Using another voter account
         })
-      ).to.be.rejectedWith("ElectionDatabase__ElectionClosed");
+      ).to.be.rejectedWith("ElectionDatabase__ElectionNotActive");
     });
 
     it("should prevent unregistered voters from voting", async function () {
