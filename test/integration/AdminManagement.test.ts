@@ -307,6 +307,7 @@ describe("Admin Management Integration Tests", function () {
         voterDatabase,
         candidateDatabase,
         electionDatabase,
+        owner,
         admin1,
         admin2,
         randomUser,
@@ -314,8 +315,8 @@ describe("Admin Management Integration Tests", function () {
       } = await loadFixture(deployContractsFixture);
 
       // Create a hierarchy:
-      // - admin1 is admin of all three contracts
-      // - admin2 is admin of VoterDatabase and can make admin1 an admin of ElectionDatabase
+      // - admin1 is admin of CandidateDatabase and ElectionDatabase (added by owner)
+      // - admin2 is admin of VoterDatabase (added by owner)
 
       // Setup admin2 as admin of VoterDatabase
       const admin2Hash = await voterDatabase.write.addAdmin([
@@ -329,7 +330,7 @@ describe("Admin Management Integration Tests", function () {
       ]);
       await publicClient.waitForTransactionReceipt({ hash: admin1CandHash });
 
-      // Admin2 should NOT be able to add admin1 to ElectionDatabase
+      // Admin2 should NOT be able to add admin1 to ElectionDatabase (only owner can add admins)
       await expect(
         electionDatabase.write.addAdmin([admin1.account.address], {
           account: admin2.account,
@@ -342,46 +343,55 @@ describe("Admin Management Integration Tests", function () {
       ]);
       await publicClient.waitForTransactionReceipt({ hash: admin1ElecHash });
 
-      // Now admin1 should be able to add another user as admin to ElectionDatabase
-      const randUserHash = await electionDatabase.write.addAdmin(
-        [randomUser.account.address],
-        {
-          account: admin1.account,
-        }
-      );
-      await publicClient.waitForTransactionReceipt({ hash: randUserHash });
-
-      // This should fail because only owner can add admins
+      // Admin1 should NOT be able to add another user as admin to ElectionDatabase
+      // (only owner can add admins, being an admin isn't enough)
       await expect(
         electionDatabase.write.addAdmin([randomUser.account.address], {
           account: admin1.account,
         })
       ).to.be.rejectedWith("AdminManagement__NotOwner");
 
+      // Only owner can add randomUser as admin
+      const randUserHash = await electionDatabase.write.addAdmin([
+        randomUser.account.address,
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: randUserHash });
+
       // Verify final admin statuses
       assert.equal(
         await voterDatabase.read.isAdmin([admin1.account.address]),
-        false
+        false,
+        "Admin1 should not be admin of VoterDatabase"
       );
       assert.equal(
         await voterDatabase.read.isAdmin([admin2.account.address]),
-        true
+        true,
+        "Admin2 should be admin of VoterDatabase"
       );
       assert.equal(
         await candidateDatabase.read.isAdmin([admin1.account.address]),
-        true
+        true,
+        "Admin1 should be admin of CandidateDatabase"
       );
       assert.equal(
         await candidateDatabase.read.isAdmin([admin2.account.address]),
-        false
+        false,
+        "Admin2 should not be admin of CandidateDatabase"
       );
       assert.equal(
         await electionDatabase.read.isAdmin([admin1.account.address]),
-        true
+        true,
+        "Admin1 should be admin of ElectionDatabase"
+      );
+      assert.equal(
+        await electionDatabase.read.isAdmin([randomUser.account.address]),
+        true,
+        "RandomUser should be admin of ElectionDatabase"
       );
       assert.equal(
         await electionDatabase.read.isAdmin([admin2.account.address]),
-        false
+        false,
+        "Admin2 should not be admin of ElectionDatabase"
       );
     });
   });
