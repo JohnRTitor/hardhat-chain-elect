@@ -25,14 +25,26 @@ error ElectionDatabase__CandidateNotRegistered();
 /// @notice Thrown when a candidate is already registered in the election
 error ElectionDatabase__CandidateAlreadyEnrolled();
 
-/// @notice Thrown when a restricted action is attempted during an active election
-error ElectionDatabase__ElectionActive();
-
-/// @notice Thrown when an election is not currently accepting votes
-error ElectionDatabase__ElectionClosed();
-
 /// @notice Thrown when the requested election does not exist
 error ElectionDatabase__ElectionNotFound();
+
+/// @notice Thrown when the election status is not new
+error ElectionDatabase__ElectionNotNew();
+
+/// @notice Thrown when a restricted action is attempted during an active election, like enrolling a candidate
+error ElectionDatabase__ElectionNotActive();
+
+/// @notice Thrown when trying to perform an action on an election that has not yet been completed
+error ElectionDatabase__ElectionNotCompleted();
+
+/// @notice Thrown when trying to perform an action on a completed election
+error ElectionDatabase__ElectionAlreadyCompleted();
+
+/// @notice Thrown when trying to perform an action on an archived election
+error ElectionDatabase__ElectionAlreadyArchived();
+
+/// @notice Thrown when trying to complete an election without any votes
+error ElectionDatabase__ElectionHasNoVotes();
 
 /// @notice Thrown when an election has no contestants/candidates enrolled
 error ElectionDatabase__ElectionHasNoContestant();
@@ -52,6 +64,20 @@ error ElectionDatabase__InvalidAddress();
  */
 contract ElectionDatabase is AdminManagement {
     /**
+     * @notice Election status enumeration
+     * @dev NEW: Election created, candidates can enroll
+     * @dev ACTIVE: Election open for voting
+     * @dev COMPLETED: Election closed, results calculated
+     * @dev ARCHIVED: Election archived, no further modifications allowed
+     */
+    enum ElectionStatus {
+        NEW,
+        ACTIVE,
+        COMPLETED,
+        ARCHIVED
+    }
+
+    /**
      * @notice Stores details for a single election
      * @dev The registrationTimestamp serves as both a timestamp and a registration flag
      *    - If > 0, election is registered
@@ -67,8 +93,8 @@ contract ElectionDatabase is AdminManagement {
         mapping(address => address) voterToChosenCandidate;
         // voter -> timestamp when they voted in this specific election (0 if not voted)
         mapping(address => uint256) voterToVoteTimestamp;
-        // used to track whether the election is active or not
-        bool isActive;
+        // used to track the current status of the election
+        ElectionStatus status;
         uint256 totalVotes;
         // If > 0, election is registered. Acts as creation timestamp
         uint256 registrationTimestamp;
@@ -140,8 +166,11 @@ contract ElectionDatabase is AdminManagement {
     /// @notice Emitted when an election is opened for voting
     event ElectionOpened(uint256 indexed electionId, address indexed admin);
 
-    /// @notice Emitted when an election is closed
-    event ElectionClosed(uint256 indexed electionId, address indexed admin);
+    /// @notice Emitted when an election is completed
+    event ElectionCompleted(uint256 indexed electionId, address indexed admin);
+
+    /// @notice Emitted when an election is archived
+    event ElectionArchived(uint256 indexed electionId, address indexed admin);
 
     /**
      * @notice Ensures the election exists
@@ -154,22 +183,32 @@ contract ElectionDatabase is AdminManagement {
     }
 
     /**
-     * @notice Ensures the election is open for voting
+     * @notice Ensures the election is in new state
      * @param _electionId ID of the election to check
      */
-    modifier onlyOpenElection(uint256 _electionId) {
-        if (!s_elections[_electionId].isActive)
-            revert ElectionDatabase__ElectionClosed();
+    modifier onlyNewElection(uint256 _electionId) {
+        if (s_elections[_electionId].status != ElectionStatus.NEW)
+            revert ElectionDatabase__ElectionNotNew();
         _;
     }
 
     /**
-     * @notice Ensures the election is closed/inactive
+     * @notice Ensures the election is open for voting
      * @param _electionId ID of the election to check
      */
-    modifier onlyClosedElection(uint256 _electionId) {
-        if (s_elections[_electionId].isActive)
-            revert ElectionDatabase__ElectionActive();
+    modifier onlyActiveElection(uint256 _electionId) {
+        if (s_elections[_electionId].status != ElectionStatus.ACTIVE)
+            revert ElectionDatabase__ElectionNotActive();
+        _;
+    }
+
+    /**
+     * @notice Ensures the election is completed
+     * @param _electionId ID of the election to check
+     */
+    modifier onlyCompletedElection(uint256 _electionId) {
+        if (s_elections[_electionId].status != ElectionStatus.COMPLETED)
+            revert ElectionDatabase__ElectionNotCompleted();
         _;
     }
 
@@ -241,7 +280,7 @@ contract ElectionDatabase is AdminManagement {
         Election storage newElection = s_elections[electionId];
         newElection.name = _name;
         newElection.description = _description;
-        newElection.isActive = false;
+        newElection.status = ElectionStatus.NEW;
         newElection.totalVotes = 0;
         newElection.registrationTimestamp = block.timestamp; // Set timestamp to register the election
 
@@ -262,7 +301,12 @@ contract ElectionDatabase is AdminManagement {
         uint256 _electionId,
         string memory _name,
         string memory _description
-    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+    )
+        external
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        onlyNewElection(_electionId)
+    {
         Election storage election = s_elections[_electionId];
 
         election.name = _name;
@@ -305,7 +349,12 @@ contract ElectionDatabase is AdminManagement {
      */
     function adminOpenElection(
         uint256 _electionId
-    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+    )
+        external
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        onlyNewElection(_electionId)
+    {
         Election storage election = s_elections[_electionId];
 
         // Prevent opening elections with no candidates
@@ -313,27 +362,59 @@ contract ElectionDatabase is AdminManagement {
             revert ElectionDatabase__ElectionHasNoContestant();
         }
 
-        election.isActive = true;
+        election.status = ElectionStatus.ACTIVE;
         emit ElectionOpened(_electionId, msg.sender);
     }
 
     /**
-     * @notice Closes an election from voting
+     * @notice Completes an election and calculates results
      * @dev Only owner/admins can call this function
-     * @param _electionId ID of the election to close
+     * @dev Election must be active and have candidates enrolled and votes cast
+     * @param _electionId ID of the election to complete
      */
-    function adminCloseElection(
+    function adminCompleteElection(
+        uint256 _electionId
+    )
+        external
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        onlyActiveElection(_electionId)
+    {
+        Election storage election = s_elections[_electionId];
+
+        // If there are no votes cast, it can't be marked as completed
+        if (election.totalVotes == 0) {
+            revert ElectionDatabase__ElectionHasNoVotes();
+        }
+
+        election.status = ElectionStatus.COMPLETED;
+        emit ElectionCompleted(_electionId, msg.sender);
+    }
+
+    /**
+     * @notice Archives an election
+     * @dev Only owner/admins can call this function
+     * @dev Only completed elections can be archived
+     * @param _electionId ID of the election to archive
+     */
+    function adminArchiveElection(
         uint256 _electionId
     ) external onlyAdmin onlyRegisteredElection(_electionId) {
         Election storage election = s_elections[_electionId];
-        election.isActive = false;
-        emit ElectionClosed(_electionId, msg.sender);
+        if (election.status == ElectionStatus.ARCHIVED) {
+            revert ElectionDatabase__ElectionAlreadyArchived();
+        }
+        if (election.status == ElectionStatus.COMPLETED) {
+            revert ElectionDatabase__ElectionAlreadyCompleted();
+        }
+        election.status = ElectionStatus.ARCHIVED;
+        emit ElectionArchived(_electionId, msg.sender);
     }
 
     /**
      * @notice Allows a candidate to enroll themselves in an election
      * @dev Candidate must be registered in CandidateDatabase
-     * @dev Election must be in closed state
+     * @dev Election must be in pending state
      * @param _electionId ID of the election to enroll in
      */
     function enrollCandidate(
@@ -341,7 +422,7 @@ contract ElectionDatabase is AdminManagement {
     )
         external
         onlyRegisteredElection(_electionId)
-        onlyClosedElection(_electionId)
+        onlyNewElection(_electionId)
         onlyRegisteredCandidate(msg.sender)
     {
         Election storage election = s_elections[_electionId];
@@ -360,7 +441,7 @@ contract ElectionDatabase is AdminManagement {
 
     /**
      * @notice Allows a candidate to withdraw themselves from an election
-     * @dev Election must be in closed state
+     * @dev Election must be in pending state
      * @param _electionId ID of the election to withdraw from
      */
     function withdrawCandidate(
@@ -368,7 +449,7 @@ contract ElectionDatabase is AdminManagement {
     )
         external
         onlyRegisteredElection(_electionId)
-        onlyClosedElection(_electionId)
+        onlyNewElection(_electionId)
     {
         Election storage election = s_elections[_electionId];
 
@@ -404,7 +485,7 @@ contract ElectionDatabase is AdminManagement {
     )
         external
         onlyRegisteredElection(_electionId)
-        onlyOpenElection(_electionId)
+        onlyActiveElection(_electionId)
         onlyEnrolledCandidate(_electionId, _candidate)
         onlyRegisteredVoter
     {
@@ -439,6 +520,7 @@ contract ElectionDatabase is AdminManagement {
         external
         onlyAdmin
         onlyRegisteredElection(_electionId)
+        onlyNewElection(_electionId)
         onlyRegisteredCandidate(_candidate)
     {
         Election storage election = s_elections[_electionId];
@@ -464,7 +546,12 @@ contract ElectionDatabase is AdminManagement {
     function adminWithdrawCandidate(
         uint256 _electionId,
         address _candidate
-    ) external onlyAdmin onlyRegisteredElection(_electionId) {
+    )
+        external
+        onlyAdmin
+        onlyRegisteredElection(_electionId)
+        onlyNewElection(_electionId)
+    {
         Election storage election = s_elections[_electionId];
 
         // Find and remove the candidate
@@ -502,14 +589,19 @@ contract ElectionDatabase is AdminManagement {
     }
 
     /**
-     * @notice Returns whether the election is currently active
+     * @notice Returns the current status of the election
      * @param _electionId ID of the election
-     * @return Status of the election (true if active)
+     * @return Status of the election
      */
     function getElectionStatus(
         uint256 _electionId
-    ) external view onlyRegisteredElection(_electionId) returns (bool) {
-        return s_elections[_electionId].isActive;
+    )
+        external
+        view
+        onlyRegisteredElection(_electionId)
+        returns (ElectionStatus)
+    {
+        return s_elections[_electionId].status;
     }
 
     /**
@@ -517,7 +609,7 @@ contract ElectionDatabase is AdminManagement {
      * @param _electionId ID of the election
      * @return name Name of the election
      * @return description Description of the election
-     * @return isActive Whether the election is currently active
+     * @return status Current status of the election
      * @return candidates Array of candidate addresses enrolled in the election
      * @return totalVotes Total number of votes cast in the election
      * @return registrationTimestamp When the election was created
@@ -531,7 +623,7 @@ contract ElectionDatabase is AdminManagement {
         returns (
             string memory name,
             string memory description,
-            bool isActive,
+            ElectionStatus status,
             address[] memory candidates,
             uint256 totalVotes,
             uint256 registrationTimestamp
@@ -541,7 +633,7 @@ contract ElectionDatabase is AdminManagement {
         return (
             election.name,
             election.description,
-            election.isActive,
+            election.status,
             election.candidates,
             election.totalVotes,
             election.registrationTimestamp
@@ -598,7 +690,13 @@ contract ElectionDatabase is AdminManagement {
      */
     function getWinner(
         uint256 _electionId
-    ) external view onlyRegisteredElection(_electionId) returns (address) {
+    )
+        external
+        view
+        onlyRegisteredElection(_electionId)
+        onlyCompletedElection(_electionId)
+        returns (address)
+    {
         Election storage election = s_elections[_electionId];
         uint256 maxVotes = 0;
         address winnerAddress = address(0);
