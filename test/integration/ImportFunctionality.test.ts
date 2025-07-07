@@ -84,6 +84,19 @@ describe("Import Functionality Tests", function () {
     ]);
     await publicClient.waitForTransactionReceipt({ hash: candidate2Hash });
 
+    // Add destination contracts as admins on source contracts to enable import functionality
+    const addVoterAdminHash = await sourceVoterDb.write.addAdmin([
+      destVoterDb.address,
+    ]);
+    await publicClient.waitForTransactionReceipt({ hash: addVoterAdminHash });
+
+    const addCandidateAdminHash = await sourceCandidateDb.write.addAdmin([
+      destCandidateDb.address,
+    ]);
+    await publicClient.waitForTransactionReceipt({
+      hash: addCandidateAdminHash,
+    });
+
     return {
       sourceVoterDb,
       sourceCandidateDb,
