@@ -190,7 +190,9 @@ describe("Admin Management Integration Tests", function () {
           [
             nonAdmin.account.address,
             "Test Candidate",
-            Math.floor(new Date().getTime() / 1000) - 30 * 365 * 24 * 60 * 60, // 30 years old
+            BigInt(
+              Math.floor(new Date().getTime() / 1000) - 30 * 365 * 24 * 60 * 60
+            ), // 30 years old
             0, // Male
             "123 Admin St",
             "candidate@example.com",
