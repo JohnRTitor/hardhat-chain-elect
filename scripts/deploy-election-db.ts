@@ -51,40 +51,46 @@ async function main() {
     console.log("----------------------------------------------------");
     await delay(3000);
 
-    // Step 4: Set up admin permissions
-    console.log("Setting up admin permissions...");
-    const voterDatabaseContract = await hre.viem.getContractAt(
-      "VoterDatabase",
-      voterDatabaseAddress
-    );
-    const candidateDatabaseContract = await hre.viem.getContractAt(
-      "CandidateDatabase",
-      candidateDatabaseAddress
-    );
+    // Step 4: Set up admin permissions (skip if SKIP_CONFIGURE=1)
+    if (process.env.SKIP_CONFIGURE !== "1") {
+      console.log("Setting up admin permissions...");
+      const voterDatabaseContract = await hre.viem.getContractAt(
+        "VoterDatabase",
+        voterDatabaseAddress
+      );
+      const candidateDatabaseContract = await hre.viem.getContractAt(
+        "CandidateDatabase",
+        candidateDatabaseAddress
+      );
 
-    const publicClient = await hre.viem.getPublicClient();
+      const publicClient = await hre.viem.getPublicClient();
 
-    console.log("Granting ElectionDatabase admin access in VoterDatabase...");
-    const hash1 = await voterDatabaseContract.write.addAdmin([
-      getAddress(electionDatabaseAddress),
-    ]);
-    await publicClient.waitForTransactionReceipt({ hash: hash1 });
+      console.log("Granting ElectionDatabase admin access in VoterDatabase...");
+      const hash1 = await voterDatabaseContract.write.addAdmin([
+        getAddress(electionDatabaseAddress),
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: hash1 });
 
-    console.log(
-      "Granting ElectionDatabase admin access in CandidateDatabase..."
-    );
-    const hash2 = await candidateDatabaseContract.write.addAdmin([
-      getAddress(electionDatabaseAddress),
-    ]);
-    await publicClient.waitForTransactionReceipt({ hash: hash2 });
+      console.log(
+        "Granting ElectionDatabase admin access in CandidateDatabase..."
+      );
+      const hash2 = await candidateDatabaseContract.write.addAdmin([
+        getAddress(electionDatabaseAddress),
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash: hash2 });
 
-    console.log("Admin permissions setup successfully!");
-    console.log("----------------------------------------------------");
+      console.log("Admin permissions setup successfully!");
+      console.log("----------------------------------------------------");
+    } else {
+      console.log("Skipping admin permissions setup (SKIP_CONFIGURE=1)");
+      console.log("----------------------------------------------------");
+    }
 
     // Step 5: Verify contracts on Sepolia if applicable
     if (
       hre.network.config.chainId === sepolia.id &&
-      process.env.ETHERSCAN_API_KEY
+      process.env.ETHERSCAN_API_KEY &&
+      process.env.SKIP_VERIFY !== "1"
     ) {
       console.log("Waiting before contract verification...");
       await delay(7000);
@@ -97,6 +103,11 @@ async function main() {
         candidateDatabaseAddress,
       ]);
       console.log("Contracts verified successfully!");
+      console.log("----------------------------------------------------");
+    } else {
+      console.log(
+        "Skipping contract verification... Either SKIP_VERIFY=1 provided or ETHERSCAN_API_KEY is missing or chain is unsupported"
+      );
       console.log("----------------------------------------------------");
     }
   } catch (error) {
